@@ -50,6 +50,12 @@ app.include_router(groups.router)
 app.include_router(ws.router)  # the single WebSocket endpoint: /ws?token=
 
 
+@app.get("/")
+def root():
+    """Friendly landing for anyone opening the backend URL directly."""
+    return {"service": "Signal Clone API", "docs": "/docs", "health": "/health"}
+
+
 @app.get("/health")
 def health():
     """Unprefixed on purpose: the keep-warm pinger's target."""
