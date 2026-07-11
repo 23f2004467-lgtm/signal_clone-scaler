@@ -60,21 +60,18 @@ Prerequisite: the code is finished locally with `backend/Dockerfile`, `render.ya
 - [ ] 1. From the project root, run (substitute your real repo URL from A1):
 
 ```bash
-git init                                   # skip if already a repo
-git add .
-git commit -m "Signal clone: initial deploy"
-git branch -M main
-git remote add origin https://github.com/<you>/signal-clone.git
 git push -u origin main
+# (the repo is already initialized on branch main with milestone commits,
+#  and the remote is already configured: https://github.com/23f2004467-lgtm/signal_clone-scaler.git)
 ```
 
-- [ ] 2. Refresh the GitHub repo page and confirm `backend/`, `frontend/`, and `render.yaml` are all there.
+- [ ] 2. Refresh the GitHub repo page and confirm `backend/` (including `backend/render.yaml`) and `frontend/` are both there.
 
 ### B2. Render — create the backend web service
 
 - [ ] 1. Go to https://dashboard.render.com/ → click **New +** → **Web Service**.
 - [ ] 2. Connect/select the `signal-clone` repo.
-- [ ] 3. Runtime: Render **auto-detects Docker** from `backend/Dockerfile` (root directory `backend` — `render.yaml` already declares this; if configuring by hand, set Root Directory to `backend`). Do not pick a native Python runtime.
+- [ ] 3. Runtime: Render **auto-detects Docker** from `backend/Dockerfile` — set **Root Directory to `backend`** in the dashboard. (`backend/render.yaml` records the same settings for review, but Render Blueprints only read `render.yaml` from the repo root — copy it there if you want the Blueprint flow instead of click-ops.) Do not pick a native Python runtime.
 - [ ] 4. Instance type: **Free**.
 - [ ] 5. Environment variable: `FRONTEND_ORIGIN` = `https://<app>.vercel.app`. **Chicken-and-egg note:** the Vercel URL doesn't exist yet — set a placeholder now (your best guess at the future Vercel URL, e.g. `https://signal-clone.vercel.app`) and come back to fix it in step B3.6. Exact string match: scheme + host, **no trailing slash**.
 - [ ] 6. Do **NOT** set `WEB_CONCURRENCY` — uvicorn silently reads it, and 2+ workers break cross-user delivery with no error. The Dockerfile already pins `--workers 1`.
@@ -108,7 +105,7 @@ Timing rule: enable pingers **only after** B2.9 passed. A cold wake takes ~30–
 
 - [ ] 1. Open `https://<app>.vercel.app` in two different browsers (or one normal + one incognito window).
 - [ ] 2. Log in as **Alice** in one, **Bob** in the other — use the one-click "Login as Alice / Login as Bob" buttons, or any seeded phone with OTP `123456`.
-- [ ] 3. Send a message from Alice → it appears live in Bob's window; Alice's tick goes single grey → double grey (delivered) → double blue/filled when Bob opens the chat (read).
+- [ ] 3. Send a message from Alice → it appears live in Bob's window; Alice's tick goes single circled check → double circled checks (delivered) → double **filled** circled checks when Bob opens the chat (read — filled, never blue, per Signal's v3 icons).
 - [ ] 4. Type in Bob's composer → Alice sees the "typing…" indicator.
 - [ ] 5. In devtools (F12) → Network tab → filter WS: the socket connection shows `wss://<name>.onrender.com/ws?token=…` with status **101 Switching Protocols**. If you see `ws://` or no 101, stop and see Troubleshooting.
 - [ ] 6. Optional depth: create a group, admin-add/remove a member, and watch the removed user's screen update live.

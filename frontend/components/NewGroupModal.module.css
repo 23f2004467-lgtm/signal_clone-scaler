@@ -237,16 +237,6 @@
   border-color: var(--ultramarine, #2c6bed);
 }
 
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 100%;
-  font-weight: 600;
-  user-select: none;
-}
-
 .emptyText {
   margin: 16px;
   font-size: 13px;

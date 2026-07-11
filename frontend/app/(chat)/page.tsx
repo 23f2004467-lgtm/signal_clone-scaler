@@ -198,16 +198,10 @@ export default function ChatPage() {
     name: m.display_name,
     phone: m.username,
     role: m.role,
-    online: m.is_online ?? false,
+    online: m.is_online,
   }));
   const viewerIsAdmin =
     selected?.members.find((m) => m.id === me?.id)?.role === "admin";
-
-  // Phone navigation (§2): ChatPane's back chevron clears the selection and
-  // returns to the list. The chevron itself lives in ChatPane's header; this
-  // object rides a JSX spread so the page compiles independently of when
-  // ChatPane's Props declare the callback.
-  const paneNav = { onBack: () => selectConversation(null) };
 
   return (
     <div
@@ -375,7 +369,9 @@ export default function ChatPage() {
               key={selected.id}
               conversation={selected}
               me={me}
-              {...paneNav}
+              // Phone navigation (§2): the back chevron in ChatPane's header
+              // clears the selection, returning the ≤640px layout to the list.
+              onBack={() => selectConversation(null)}
               onShowInfo={
                 selected.type === "group"
                   ? () => setInfoOpenFor(selected.id)

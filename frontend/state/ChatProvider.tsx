@@ -17,7 +17,13 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, clearSession, getStoredUser, getToken } from "@/lib/api";
-import type { ChatMessage, ClientEvent, ServerEvent, User } from "@/lib/types";
+import type {
+  ChatMessage,
+  ClientEvent,
+  ReplyToSummary,
+  ServerEvent,
+  User,
+} from "@/lib/types";
 import { chatReducer, initialChatState, type ChatState } from "./chatReducer";
 
 // NEXT_PUBLIC_* values are inlined into the bundle at build time, and only
@@ -54,8 +60,20 @@ interface ChatContextValue {
   selectedId: number | null;
   selectConversation: (id: number | null) => void;
   loadHistory: (conversationId: number) => void;
-  sendMessage: (conversationId: number, body: string) => void;
-  retryMessage: (conversationId: number, clientId: string, body: string) => void;
+  // replyTo: the quoted message's summary, built by ChatPane from its loaded
+  // history — the optimistic bubble renders the quote instantly and the
+  // frame carries just reply_to_id (the server re-derives the summary).
+  sendMessage: (
+    conversationId: number,
+    body: string,
+    replyTo?: ReplyToSummary
+  ) => void;
+  retryMessage: (
+    conversationId: number,
+    clientId: string,
+    body: string,
+    replyToId: number | null
+  ) => void;
   sendTyping: (conversationId: number) => void;
   markRead: (conversationId: number, upToMessageId: number) => void;
   // M3 (blueprint §7): create/mutate over REST, then feed the response through
@@ -294,7 +312,7 @@ export default function ChatProvider({
   }, [loadConversations, loadHistory, me]);
 
   const sendMessage = useCallback(
-    (conversationId: number, body: string) => {
+    (conversationId: number, body: string, replyTo?: ReplyToSummary) => {
       const ws = socketRef.current;
       // The Composer is disabled while the socket isn't OPEN, so this guard
       // only catches the race where it closed mid-keystroke.
@@ -302,13 +320,14 @@ export default function ChatProvider({
       const client_id = crypto.randomUUID();
       // Optimistic bubble (§6): "sending" exists only client-side. id 0 and
       // the client clock are placeholders; message.ack replaces both in
-      // place with the real row.
+      // place with the real row (including the server-derived reply_to).
       const optimistic: ChatMessage = {
         id: 0,
         conversation_id: conversationId,
         sender_id: me.id,
         body,
-        reply_to_id: null,
+        reply_to_id: replyTo?.id ?? null,
+        reply_to: replyTo ?? null,
         client_id,
         created_at: new Date().toISOString(),
         status: "sending",
@@ -319,6 +338,7 @@ export default function ChatProvider({
         conversation_id: conversationId,
         client_id,
         body,
+        reply_to_id: replyTo?.id,
       };
       ws.send(JSON.stringify(frame));
     },
@@ -326,7 +346,12 @@ export default function ChatProvider({
   );
 
   const retryMessage = useCallback(
-    (conversationId: number, clientId: string, body: string) => {
+    (
+      conversationId: number,
+      clientId: string,
+      body: string,
+      replyToId: number | null
+    ) => {
       const ws = socketRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) return; // still offline: stay failed
       dispatch({
@@ -336,12 +361,14 @@ export default function ChatProvider({
       });
       // The SAME client_id (§6): if the original frame did reach the server
       // before the drop, UNIQUE(sender_id, client_id) makes this retry
-      // idempotent and the ack still reconciles the one bubble.
+      // idempotent and the ack still reconciles the one bubble. The same
+      // reply_to_id rides along so a retried reply stays a reply.
       const frame: ClientEvent = {
         type: "message.send",
         conversation_id: conversationId,
         client_id: clientId,
         body,
+        reply_to_id: replyToId ?? undefined,
       };
       ws.send(JSON.stringify(frame));
     },

@@ -227,6 +227,33 @@ def message_page(
     return list(reversed(newest_first))
 
 
+# The quote block only ever renders one ellipsized line, so the wire carries
+# a snippet instead of a full (possibly huge) quoted body.
+REPLY_SNIPPET_LEN = 120
+
+
+def reply_summaries(db: Session, message_ids: list[int]) -> dict[int, dict]:
+    """message_id -> {id, sender_id, sender_name, body_snippet} for every
+    given id -- the compact reply_to summary embedded in message payloads
+    (one query per history page / WS send, however many replies it holds)."""
+    if not message_ids:
+        return {}
+    stmt = (
+        select(Message.id, Message.sender_id, User.display_name, Message.body)
+        .join(User, User.id == Message.sender_id)
+        .where(Message.id.in_(message_ids))
+    )
+    return {
+        row.id: {
+            "id": row.id,
+            "sender_id": row.sender_id,
+            "sender_name": row.display_name,
+            "body_snippet": row.body[:REPLY_SNIPPET_LEN],
+        }
+        for row in db.execute(stmt)
+    }
+
+
 def dm_key(user_a_id: int, user_b_id: int) -> str:
     """'minUserId:maxUserId' -- order-independent, so the UNIQUE constraint
     on conversations.dm_key prevents duplicate DM pairs."""

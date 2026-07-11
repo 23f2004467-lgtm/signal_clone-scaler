@@ -17,7 +17,7 @@ from app.ws import manager, push_from_rest
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 
-def _assemble(db: Session, user_id: int, rows) -> list[schemas.ConversationOut]:
+def _assemble(db: Session, rows) -> list[schemas.ConversationOut]:
     """Join the SQL aggregate rows with each conversation's member list."""
     conversation_ids = [row["conversation_id"] for row in rows]
     members_by_conversation: dict[int, list[schemas.MemberOut]] = defaultdict(list)
@@ -59,7 +59,7 @@ def _assemble(db: Session, user_id: int, rows) -> list[schemas.ConversationOut]:
 
 def _one_conversation(db: Session, user_id: int, conversation_id: int) -> schemas.ConversationOut:
     rows = queries.conversation_rows_for_user(db, user_id, conversation_id=conversation_id)
-    return _assemble(db, user_id, rows)[0]
+    return _assemble(db, rows)[0]
 
 
 @router.get("", response_model=list[schemas.ConversationOut])
@@ -70,7 +70,7 @@ def list_conversations(
     """The big left-pane payload: per conversation, the last-message preview,
     unread count, members, and timestamps -- most recently active first."""
     rows = queries.conversation_rows_for_user(db, user.id)
-    return _assemble(db, user.id, rows)
+    return _assemble(db, rows)
 
 
 @router.post("", response_model=schemas.ConversationOut)
@@ -185,4 +185,17 @@ def get_messages(
     if queries.get_membership(db, conversation_id, user.id) is None:
         # 404, not 403: non-members must not learn the conversation exists.
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return queries.message_page(db, conversation_id, before_id, limit)
+    messages = queries.message_page(db, conversation_id, before_id, limit)
+    # One extra query for the whole page: the compact reply_to summaries for
+    # every reply in it, so the client can render quote blocks even when the
+    # quoted original falls outside this page.
+    summaries = queries.reply_summaries(
+        db, [m.reply_to_id for m in messages if m.reply_to_id is not None]
+    )
+    items = []
+    for m in messages:
+        item = schemas.MessageOut.model_validate(m)
+        if m.reply_to_id in summaries:
+            item.reply_to = schemas.ReplyToOut(**summaries[m.reply_to_id])
+        items.append(item)
+    return items

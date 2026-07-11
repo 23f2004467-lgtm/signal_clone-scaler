@@ -16,15 +16,20 @@ const SHOW_MS = 3000; // auto-dismiss (§3.14)
 const EXIT_MS = 150; // 120ms exit animation + a little slack
 
 export default function Toast({ toast }: { toast: ToastData | null }) {
-  const [phase, setPhase] = useState<"in" | "out" | "gone">("gone");
+  const [phase, setPhase] = useState<"in" | "out" | "gone">("in");
+  // The react.dev "adjusting state when a prop changes" pattern: a NEW toast
+  // id resets the phase during render (never inside an effect body — the
+  // react-hooks/set-state-in-effect rule this codebase lints under), so a
+  // repeat click restarts the cycle even while the previous toast is leaving.
+  const [seenId, setSeenId] = useState<number | null>(null);
+  if (toast && toast.id !== seenId) {
+    setSeenId(toast.id);
+    setPhase("in");
+  }
   const boxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!toast) {
-      setPhase("gone");
-      return;
-    }
-    setPhase("in");
+    if (!toast) return; // nothing rendered; the next toast id resets phase
     const hide = setTimeout(() => setPhase("out"), SHOW_MS);
     const gone = setTimeout(() => setPhase("gone"), SHOW_MS + EXIT_MS);
     // Hidden/background documents freeze the CSS animation clock at progress

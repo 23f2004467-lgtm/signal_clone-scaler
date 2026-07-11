@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatMessage, MessageStatus } from "@/lib/types";
-import Avatar from "./Avatar";
+import Avatar, { avatarFgColor } from "./Avatar";
 import StatusTick from "./StatusTicks";
 import { bubbleTime } from "./timeFormat";
 import styles from "./MessageBubble.module.css";
@@ -26,40 +26,29 @@ const STATUS_LABEL: Record<Exclude<MessageStatus, "failed">, string> = {
   read: "Read",
 };
 
-// §3.3 avatar color pairs, foreground halves, in palette order A100…A210.
-// Hash rule: sum of charCodes of (user id, else name) % 12 — identical to
-// the shared Avatar's pairOf(), and fed the same String(user id) hashKey the
-// rest of the app uses, so a sender's bubble avatar, list avatar and tinted
-// author name always agree.
-const AVATAR_FG_VARS = [
-  "--avatar-a100-fg",
-  "--avatar-a110-fg",
-  "--avatar-a120-fg",
-  "--avatar-a130-fg",
-  "--avatar-a140-fg",
-  "--avatar-a150-fg",
-  "--avatar-a160-fg",
-  "--avatar-a170-fg",
-  "--avatar-a180-fg",
-  "--avatar-a190-fg",
-  "--avatar-a200-fg",
-  "--avatar-a210-fg",
-];
-
-export function avatarFgColor(hashKey: string): string {
-  let sum = 0;
-  for (let i = 0; i < hashKey.length; i++) sum += hashKey.charCodeAt(i);
-  return `var(${AVATAR_FG_VARS[sum % AVATAR_FG_VARS.length]})`;
-}
-
-// Reply/quote block data (§3.7), resolved by ChatPane from the loaded
-// history — absent when reply_to_id is unset or the original isn't loaded.
+// Reply/quote block data (§3.7), resolved by ChatPane — from the loaded
+// history when the original is on screen, else from the server's embedded
+// reply_to summary. Absent when reply_to_id is unset.
 export interface QuoteInfo {
   label: string; // "You" for own messages, else the author's display name
   hashKey: string; // String(user id) fed to the §3.3 hash for the accent
   ownQuoted: boolean; // quoted message is mine -> ultramarine accent
   text: string;
 }
+
+// Signal's reply arrow (curved, pointing left) — 20px, 1.5 stroke like every
+// other glyph in the app (§3.4 icon conventions).
+const iconReply = (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path
+      d="M8.4 4.9 3.6 9.2a.55.55 0 0 0 0 .82l4.8 4.3M4 9.6h7.1a5.2 5.2 0 0 1 5.2 5.2v.9"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 interface Props {
   message: ChatMessage;
@@ -77,6 +66,14 @@ interface Props {
   collapseAbove?: boolean; // runs with the previous message
   collapseBelow?: boolean; // runs with the next message
   quote?: QuoteInfo;
+  // Clicking the quote scrolls to the original (§3.7) — only passed when the
+  // original is actually in the loaded history.
+  onQuoteClick?: () => void;
+  // Starts a reply to this message. Only passed for persisted rows (id > 0):
+  // an unacked optimistic bubble has no server id to reference yet. The
+  // action is hover-revealed on pointer devices (§4) and always visible on
+  // touch (DESIGN_BRIEF: no hidden affordances).
+  onReply?: () => void;
   onRetry: () => void; // failed bubbles re-send with the SAME client_id
 }
 
@@ -92,6 +89,8 @@ export default function MessageBubble({
   collapseAbove = false,
   collapseBelow = false,
   quote,
+  onQuoteClick,
+  onReply,
   onRetry,
 }: Props) {
   const failed = own && message.status === "failed";
@@ -112,11 +111,35 @@ export default function MessageBubble({
       : avatarFgColor(quote.hashKey)
     : undefined;
 
+  const quoteInner = quote && (
+    <>
+      <span
+        className={styles.quoteBar}
+        style={{ background: quoteAccent }}
+        aria-hidden="true"
+      />
+      <span className={styles.quoteBody}>
+        <span
+          className={styles.quoteAuthor}
+          // Outgoing bubbles keep the white inherited color (§3.7);
+          // incoming tints the author like the accent bar.
+          style={own ? undefined : { color: quoteAccent }}
+        >
+          {quote.label}
+        </span>
+        <span className={styles.quoteText}>{quote.text}</span>
+      </span>
+    </>
+  );
+
   return (
     <li
       className={`${styles.row} ${own ? styles.rowOwn : ""} ${
         collapseAbove ? styles.rowCollapsed : ""
       }`}
+      // Anchor for "click the quote -> scroll to the original" (§3.7).
+      // Optimistic bubbles (id 0) can't be quoted, so they carry no anchor.
+      data-message-id={message.id > 0 ? message.id : undefined}
     >
       {hasAvatarColumn && (
         <span className={styles.avatarCol} aria-hidden="true">
@@ -135,26 +158,21 @@ export default function MessageBubble({
               {senderName}
             </span>
           )}
-          {quote && (
-            <div className={styles.quote}>
-              <span
-                className={styles.quoteBar}
-                style={{ background: quoteAccent }}
-                aria-hidden="true"
-              />
-              <span className={styles.quoteBody}>
-                <span
-                  className={styles.quoteAuthor}
-                  // Outgoing bubbles keep the white inherited color (§3.7);
-                  // incoming tints the author like the accent bar.
-                  style={own ? undefined : { color: quoteAccent }}
-                >
-                  {quote.label}
-                </span>
-                <span className={styles.quoteText}>{quote.text}</span>
-              </span>
-            </div>
-          )}
+          {quote &&
+            // A real <button> only when the original is loaded and reachable;
+            // otherwise the quote is plain, non-interactive context.
+            (onQuoteClick ? (
+              <button
+                className={`${styles.quote} ${styles.quoteClickable}`}
+                type="button"
+                onClick={onQuoteClick}
+                aria-label={`Go to quoted message from ${quote.label}`}
+              >
+                {quoteInner}
+              </button>
+            ) : (
+              <div className={styles.quote}>{quoteInner}</div>
+            ))}
           <span className={styles.body}>{message.body}</span>
           <span className={styles.meta}>
             <time dateTime={message.created_at}>
@@ -173,6 +191,20 @@ export default function MessageBubble({
           </button>
         )}
       </div>
+      {onReply && (
+        // §4 hover action bar (reply only — reactions are cut), floating
+        // beside the bubble toward the center. CSS hides it until row hover
+        // on pointer devices and keeps it always visible on touch.
+        <button
+          className={styles.replyAction}
+          type="button"
+          aria-label="Reply to this message"
+          title="Reply"
+          onClick={onReply}
+        >
+          {iconReply}
+        </button>
+      )}
     </li>
   );
 }

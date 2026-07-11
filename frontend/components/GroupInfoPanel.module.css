@@ -386,16 +386,6 @@ button.tile:focus-visible {
   outline-offset: -2px;
 }
 
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 100%;
-  font-weight: 600;
-  user-select: none;
-}
-
 /* Presence (M3): a wrapper so the dot can pin to the avatar's corner. */
 .avatarWrap {
   position: relative;

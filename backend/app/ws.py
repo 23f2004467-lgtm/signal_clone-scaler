@@ -213,6 +213,16 @@ async def _handle_message_send(user_id: int, ws: WebSocket, event: dict) -> None
             # not learn the difference.
             error = {"type": "error", "code": "not_a_member",
                      "detail": "You are not a member of this conversation"}
+        elif reply_to_id is not None and (
+            (quoted := db.get(models.Message, reply_to_id)) is None
+            or quoted.conversation_id != conversation_id
+        ):
+            # A reply must quote a message in the SAME conversation. One error
+            # for both failure modes: revealing "exists, but elsewhere" would
+            # leak another conversation's message ids to a non-member.
+            error = {"type": "error", "code": "invalid_reply_to",
+                     "detail": "reply_to_id must reference a message in this "
+                               "conversation"}
         else:
             message = models.Message(
                 conversation_id=conversation_id,
@@ -235,11 +245,11 @@ async def _handle_message_send(user_id: int, ws: WebSocket, event: dict) -> None
                 message = queries.message_by_client_id(db, user_id, client_id)
             if message is None:
                 # IntegrityError with no existing row is NOT the retry case --
-                # e.g. reply_to_id pointing at a message that doesn't exist.
+                # some other constraint fired. Nothing was stored; say so.
                 error = {"type": "error", "code": "invalid_payload",
                          "detail": "Message could not be stored"}
             else:
-                message_payload = _message_dict(message)
+                message_payload = _message_dict(db, message)
                 if not is_retry:
                     # A retry re-acks the SENDER only: the others already got
                     # message.new when the row was first persisted (and anyone
@@ -380,10 +390,18 @@ async def _handle_typing(user_id: int, ws: WebSocket, event: dict) -> None:
         )
 
 
-def _message_dict(message: models.Message) -> dict:
+def _message_dict(db, message: models.Message) -> dict:
     """The wire shape of one message -- the same Pydantic model REST history
     returns (schemas.MessageOut), so the client parses a single message shape
-    everywhere. created_at is already an ISO-8601 string in the database;
-    send_json raises TypeError on a raw datetime (§5), so nothing here ever
-    holds one."""
-    return schemas.MessageOut.model_validate(message).model_dump()
+    everywhere. A reply additionally carries the compact reply_to summary
+    (one query), like every history row does. created_at is already an
+    ISO-8601 string in the database; send_json raises TypeError on a raw
+    datetime (§5), so nothing here ever holds one."""
+    out = schemas.MessageOut.model_validate(message)
+    if message.reply_to_id is not None:
+        summary = queries.reply_summaries(db, [message.reply_to_id]).get(
+            message.reply_to_id
+        )
+        if summary is not None:
+            out.reply_to = schemas.ReplyToOut(**summary)
+    return out.model_dump()

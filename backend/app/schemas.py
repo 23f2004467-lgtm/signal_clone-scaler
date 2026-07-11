@@ -94,6 +94,17 @@ class ConversationOut(BaseModel):
     unread_count: int
 
 
+class ReplyToOut(BaseModel):
+    """Compact summary of the quoted message, embedded wherever a message with
+    reply_to_id set is serialized -- so the client can render the quote block
+    even when the original message isn't in its loaded history page."""
+
+    id: int
+    sender_id: int
+    sender_name: str
+    body_snippet: str
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -102,6 +113,10 @@ class MessageOut(BaseModel):
     sender_id: int
     body: str
     reply_to_id: int | None
+    # Not an ORM column (models.py has plain FK columns only, no
+    # relationship()), so from_attributes leaves it None; the callers fill it
+    # in from queries.reply_summaries().
+    reply_to: ReplyToOut | None = None
     client_id: str
     created_at: str
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Avatar from "./Avatar";
 import styles from "./NewChatModal.module.css";
 
 // New chat — LEFT-PANE TAKEOVER, not a floating modal (DESIGN.md §3.15; the
@@ -9,7 +10,7 @@ import styles from "./NewChatModal.module.css";
 // beyond the local search filter. Esc mirrors the back arrow (DESIGN.md §4).
 //
 // The same takeover doubles as the "Add members" picker (M3): the parent
-// retitles it and simply omits the fixed rows' callbacks. onQueryChange lets
+// retitles it and simply omits the "New group" callback. onQueryChange lets
 // the parent mirror the query into GET /api/users/search and merge server
 // hits into `contacts` — the local name filter still applies on top.
 
@@ -24,80 +25,15 @@ interface Props {
   title?: string; // header title; defaults to the compose flow's "New chat"
   onSelectContact: (contactId: number) => void;
   onNewGroup?: () => void; // fixed "New group" row renders only when given
-  onNoteToSelf?: () => void; // same for "Note to Self"
   onQueryChange?: (query: string) => void;
   onBack: () => void;
 }
-
-// --- Self-contained initials avatar (DESIGN.md §3.3) -----------------------
-// Duplicated locally so this file imports nothing beyond React + its own CSS
-// module; the wiring milestone may swap in the shared Avatar.
-
-const AVATAR_PAIRS = [
-  { bg: "var(--avatar-a100-bg, #e3e3fe)", fg: "var(--avatar-a100-fg, #3838f5)" },
-  { bg: "var(--avatar-a110-bg, #dde7fc)", fg: "var(--avatar-a110-fg, #1251d3)" },
-  { bg: "var(--avatar-a120-bg, #d8e8f0)", fg: "var(--avatar-a120-fg, #086da0)" },
-  { bg: "var(--avatar-a130-bg, #cde4cd)", fg: "var(--avatar-a130-fg, #067906)" },
-  { bg: "var(--avatar-a140-bg, #eae0fd)", fg: "var(--avatar-a140-fg, #661aff)" },
-  { bg: "var(--avatar-a150-bg, #f5e3fe)", fg: "var(--avatar-a150-fg, #9f00f0)" },
-  { bg: "var(--avatar-a160-bg, #f6d8ec)", fg: "var(--avatar-a160-fg, #b8057c)" },
-  { bg: "var(--avatar-a170-bg, #f5d7d7)", fg: "var(--avatar-a170-fg, #be0404)" },
-  { bg: "var(--avatar-a180-bg, #fef5d0)", fg: "var(--avatar-a180-fg, #836b01)" },
-  { bg: "var(--avatar-a190-bg, #eae6d5)", fg: "var(--avatar-a190-fg, #7d6f40)" },
-  { bg: "var(--avatar-a200-bg, #d2d2dc)", fg: "var(--avatar-a200-fg, #4f4f6d)" },
-  { bg: "var(--avatar-a210-bg, #d7d7d9)", fg: "var(--avatar-a210-fg, #5c5c5c)" },
-];
-
-// §3.3 hash rule: sum of charCodes of the user id (else name) % 12.
-function avatarPair(key: string) {
-  let sum = 0;
-  for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i);
-  return AVATAR_PAIRS[sum % AVATAR_PAIRS.length];
-}
-
-// "Alice Chen" -> "AC", "bob" -> "B"
-function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/);
-  const first = words[0]?.[0] ?? "?";
-  const last = words.length > 1 ? words[words.length - 1][0] : "";
-  return (first + last).toUpperCase();
-}
-
-function InitialsAvatar({
-  name,
-  hashKey,
-  size,
-}: {
-  name: string;
-  hashKey?: string;
-  size: number;
-}) {
-  const pair = avatarPair(hashKey ?? name);
-  return (
-    <span
-      className={styles.avatar}
-      style={{
-        width: size,
-        height: size,
-        fontSize: Math.round(size * 0.42),
-        background: pair.bg,
-        color: pair.fg,
-      }}
-      aria-hidden="true"
-    >
-      {initialsOf(name)}
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
 
 export default function NewChatModal({
   contacts,
   title = "New chat",
   onSelectContact,
   onNewGroup,
-  onNoteToSelf,
   onQueryChange,
   onBack,
 }: Props) {
@@ -171,8 +107,8 @@ export default function NewChatModal({
       </div>
 
       <div className={styles.list}>
-        {/* Fixed rows before the contacts (DESIGN.md §3.15) — compose flow
-            only; the "Add members" reuse passes neither callback. */}
+        {/* Fixed row before the contacts (DESIGN.md §3.15) — compose flow
+            only; the "Add members" reuse omits the callback. */}
         {onNewGroup && (
         <button className={styles.tile} type="button" onClick={onNewGroup}>
           <span className={styles.iconTile}>
@@ -191,29 +127,6 @@ export default function NewChatModal({
         </button>
         )}
 
-        {onNoteToSelf && (
-        <button
-          className={styles.tile}
-          type="button"
-          onClick={onNoteToSelf}
-        >
-          <span className={styles.iconTile}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path
-                d="M4 16l1-3.5L13.6 3.9a1.8 1.8 0 0 1 2.5 2.5L7.5 15 4 16Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span className={styles.tileText}>
-            <span className={styles.tileTitle}>Note to Self</span>
-          </span>
-        </button>
-        )}
-
         {filtered.map((contact) => (
           <button
             className={styles.tile}
@@ -221,7 +134,7 @@ export default function NewChatModal({
             key={contact.id}
             onClick={() => onSelectContact(contact.id)}
           >
-            <InitialsAvatar
+            <Avatar
               name={contact.name}
               hashKey={String(contact.id)}
               size={32}

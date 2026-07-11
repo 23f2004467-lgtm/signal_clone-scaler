@@ -3,7 +3,10 @@
 // dispatch in backend/app/ws.py — one place to look when either changes.
 
 // ---------------------------------------------------------------------------
-// Model types (blueprint §4 — six tables; the four the client sees)
+// Model types (blueprint §4). Only the rows the API actually serializes get
+// interfaces here: users and messages arrive as-is; conversations and
+// memberships only ever reach the client folded into the REST response
+// shapes below (ConversationSummary / MemberInfo).
 // ---------------------------------------------------------------------------
 
 export interface User {
@@ -18,22 +21,15 @@ export interface User {
 export type ConversationType = "direct" | "group";
 export type MemberRole = "admin" | "member";
 
-export interface Conversation {
+// Compact summary of the quoted message, embedded by the server wherever a
+// message with reply_to_id is serialized (history rows, message.ack,
+// message.new) — so the quote block renders even when the original message
+// falls outside the loaded history page.
+export interface ReplyToSummary {
   id: number;
-  type: ConversationType;
-  name: string | null; // groups only; null for DMs
-  dm_key: string | null; // 'minUserId:maxUserId' for DMs; prevents duplicate pairs
-  created_by: number | null;
-  created_at: string;
-}
-
-export interface ConversationMember {
-  conversation_id: number;
-  user_id: number;
-  role: MemberRole;
-  last_delivered_message_id: number; // receipt pointer #1
-  last_read_message_id: number; // receipt pointer #2
-  joined_at: string;
+  sender_id: number;
+  sender_name: string; // the quoted author's display name at send time
+  body_snippet: string; // first 120 chars; the quote renders one line anyway
 }
 
 export interface Message {
@@ -42,6 +38,7 @@ export interface Message {
   sender_id: number;
   body: string;
   reply_to_id: number | null;
+  reply_to: ReplyToSummary | null; // set iff reply_to_id is
   client_id: string; // the sender's crypto.randomUUID(); pairs acks with bubbles
   created_at: string; // server timestamp — never the client clock
 }
@@ -54,9 +51,7 @@ export interface Message {
 // One member row as GET /api/conversations actually sends it (backend
 // schemas.MemberOut): the joined user fields flattened together with the
 // membership's role and receipt pointers. `id` is the user's id.
-// is_online is derived server-side from the ConnectionManager dict; it is
-// optional because the flag only exists once the backend realtime milestone
-// lands — an absent flag reads as offline.
+// is_online is derived server-side from the ConnectionManager dict.
 export interface MemberInfo {
   id: number;
   username: string;
@@ -64,7 +59,7 @@ export interface MemberInfo {
   role: MemberRole;
   last_delivered_message_id: number; // receipt pointer #1
   last_read_message_id: number; // receipt pointer #2
-  is_online?: boolean;
+  is_online: boolean;
 }
 
 // The last-message preview embedded in each list row — backend LastMessageOut,
@@ -105,8 +100,8 @@ export interface ChatMessage extends Message {
 }
 
 // ---------------------------------------------------------------------------
-// WS event envelope (blueprint §5). Every frame is JSON: {"type": ..., ...}.
-// Used from M1 on by the ChatProvider; defined now so the contract is fixed.
+// WS event envelope (blueprint §5). Every frame is JSON: {"type": ..., ...},
+// dispatched straight into the reducer by the ChatProvider's onmessage.
 // ---------------------------------------------------------------------------
 
 // ---- Client -> Server (3 events + the infrastructure ping) ----

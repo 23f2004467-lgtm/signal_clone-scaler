@@ -2,7 +2,7 @@ import styles from "./DayDivider.module.css";
 
 // Day divider chip (DESIGN.md §3.5): the shadowed pill used for ALL dividers
 // in the timeline — `Today`, `Yesterday`, a weekday name, or `Feb 12, 2026`.
-// The label is formatted by the caller (shared timestamp util, M4 step 6).
+// The label is formatted by the caller (dayLabel in components/timeFormat.ts).
 
 interface Props {
   label: string;

@@ -22,7 +22,7 @@ class User(Base):
     phone: Mapped[str] = mapped_column(unique=True)
     username: Mapped[str] = mapped_column(unique=True)
     display_name: Mapped[str]
-    last_seen_at: Mapped[str | None]  # written on WS disconnect (later milestone)
+    last_seen_at: Mapped[str | None]  # written on WS disconnect
     created_at: Mapped[str]
 
 
@@ -106,6 +106,6 @@ class Message(Base):
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"))
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     body: Mapped[str]
-    reply_to_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"))  # bonus replies later
+    reply_to_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"))  # reply quotes; NULL otherwise
     client_id: Mapped[str]
     created_at: Mapped[str]

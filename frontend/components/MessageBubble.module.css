@@ -112,15 +112,31 @@
   margin-bottom: 3px;
 }
 
-/* Reply/quote block (§3.7), above the text. */
+/* Reply/quote block (§3.7), above the text. Also applied to a <button> when
+   the original message is loaded (click scrolls to it), so the button
+   defaults are reset to match the plain block exactly. */
 .quote {
   display: flex;
   gap: 8px;
+  border: none;
   border-radius: 10px;
   padding: 8px;
   margin-bottom: 6px;
   background: rgba(0, 0, 0, 0.06);
   min-width: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.quoteClickable {
+  cursor: pointer;
+}
+
+.quoteClickable:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
 }
 
 :global([data-theme="dark"]) .quote {
@@ -216,4 +232,65 @@
 .retry:focus-visible {
   outline: 2px solid var(--ultramarine, #2c6bed);
   outline-offset: 2px;
+}
+
+/* Reply action (§4 hover action bar, reply only): 28×28 chip-style button
+   floating beside the bubble toward the center — after the stack for
+   incoming rows, order:-1 flips it to the bubble's left on outgoing rows. */
+.replyAction {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  margin: 0 6px;
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-bg-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 0 2px rgba(0, 0, 0, 0.2));
+  color: var(--color-icon, #3b3b3b);
+  cursor: pointer;
+}
+
+.rowOwn .replyAction {
+  order: -1;
+}
+
+.replyAction:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+/* Pointer devices: hidden until the row is hovered or the button itself is
+   keyboard-focused, fading in 120ms (§4). On touch there is no hover, so the
+   button simply stays visible (DESIGN_BRIEF: no hidden affordances). */
+@media (hover: hover) {
+  .replyAction {
+    opacity: 0;
+    transition: opacity var(--transition-fast, 120ms ease-out);
+  }
+
+  .row:hover .replyAction,
+  .replyAction:focus-visible {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replyAction {
+    transition: none;
+  }
+}
+
+/* ≥44×44 tap target on coarse pointers (§2 mobile hardening). */
+@media (pointer: coarse) {
+  .replyAction::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
 }

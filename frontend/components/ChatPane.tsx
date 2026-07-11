@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import Avatar from "./Avatar";
-import Composer from "./Composer";
+import Avatar, { avatarFgColor } from "./Avatar";
+import Composer, { type ReplyPreview } from "./Composer";
 import DayDivider from "./DayDivider";
 import EmptyState from "./EmptyState";
 import MessageBubble, { type QuoteInfo } from "./MessageBubble";
@@ -28,7 +28,8 @@ import styles from "./ChatPane.module.css";
 // when the selection changes; live messages arrive through the reducer —
 // this component only renders state.
 
-// Verified grouping window (ts/util/timelineUtil.std.ts).
+// Signal Desktop's verified run-grouping window (its ts/util/timelineUtil
+// sets COLLAPSE_WITHIN = 3 minutes — see DESIGN.md §3.6 and its source list).
 const COLLAPSE_WITHIN_MS = 3 * 60 * 1000;
 
 // Messages collapse into a run when same author AND <3 minutes apart AND the
@@ -49,6 +50,11 @@ function sameRun(older: ChatMessage, newer: ChatMessage): boolean {
 const NEAR_BOTTOM_PX = 100;
 // The scroll-to-bottom pill appears past this distance (§4 [approx]).
 const SHOW_PILL_PX = 300;
+
+// Client-side mirror of the backend's queries.REPLY_SNIPPET_LEN: the
+// optimistic reply bubble truncates its quote the same way the server will,
+// so the ack never visibly reflows the quote block.
+const REPLY_SNIPPET_LEN = 120;
 
 // ---- 20px header/composer glyphs (1.5 stroke, round caps — §3.4) ----------
 
@@ -231,6 +237,10 @@ function ChatPaneInner({
     setToast((t) => ({ id: (t?.id ?? 0) + 1, text: "Coming Soon" }));
   }
 
+  // The message being replied to (§3.10 reply state). ChatPane is remounted
+  // per conversation (keyed in page.tsx), so switching chats drops it.
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
+
   function scrollToBottom(smooth: boolean) {
     const el = scrollRef.current;
     if (!el) return;
@@ -240,6 +250,22 @@ function ChatPaneInner({
     el.scrollTo({
       top: el.scrollHeight,
       behavior: smooth && !reduceMotion ? "smooth" : "auto",
+    });
+  }
+
+  // Click-the-quote navigation (§3.7): the target bubble's <li> carries
+  // data-message-id, so this is a lookup inside the scroll region, not a ref
+  // per message. Only wired for quotes whose original is actually loaded.
+  function scrollToMessage(messageId: number) {
+    const el = scrollRef.current?.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    el?.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center",
     });
   }
 
@@ -288,9 +314,13 @@ function ChatPaneInner({
 
   // The read flow (§6: delivered→read has exactly one writer — this client).
   // Report how far we've read whenever there is something new AND the user
-  // can actually see it: tab visible and window focused. Runs on open, when
-  // a new message lands while open, after a reconnect, and on refocus (the
-  // two listeners). The newest persisted id comes from loaded history,
+  // can actually see it. document.hasFocus() is the whole gate: a hidden tab
+  // never has focus, so it already covers visibility — while embedded
+  // browser panes can report visibilityState "hidden" for a page the user is
+  // genuinely looking at, which is why this deliberately does NOT also check
+  // visibilityState. Runs on open, when a new message lands while open,
+  // after a reconnect, and on refocus (the two listeners). The newest
+  // persisted id comes from loaded history,
   // falling back to the list preview so an unread badge clears even before
   // history finishes loading; optimistic bubbles (id 0) never win the max.
   const latestMessageId = (messages ?? []).reduce(
@@ -306,9 +336,7 @@ function ChatPaneInner({
     function maybeMarkRead() {
       if (latestMessageId <= lastReadSentRef.current) return;
       if (!socketOpen) return;
-      if (document.visibilityState !== "visible" || !document.hasFocus()) {
-        return;
-      }
+      if (!document.hasFocus()) return;
       lastReadSentRef.current = latestMessageId;
       markRead(conversation.id, latestMessageId);
     }
@@ -353,6 +381,22 @@ function ChatPaneInner({
       ? String(other.id)
       : undefined;
 
+  // The composer's reply preview bar — same accent convention as the §3.7
+  // quote block (own message -> ultramarine, else the author's avatar tint).
+  const replyPreview: ReplyPreview | null = replyTarget
+    ? {
+        label:
+          replyTarget.sender_id === me.id
+            ? "You"
+            : memberName(conversation, replyTarget.sender_id),
+        text: replyTarget.body,
+        accent:
+          replyTarget.sender_id === me.id
+            ? "var(--ultramarine)"
+            : avatarFgColor(String(replyTarget.sender_id)),
+      }
+    : null;
+
   const headerIdentity = (
     <>
       <span className={styles.headerAvatar}>
@@ -387,6 +431,10 @@ function ChatPaneInner({
     const collapseAbove = !!prev && sameRun(prev, m);
     const collapseBelow = !!next && sameRun(m, next);
 
+    // Quote block data (§3.7): prefer the loaded original (full body, and
+    // the quote becomes click-to-scroll), else fall back to the server's
+    // embedded reply_to summary — a reply whose original sits on an unloaded
+    // older page still renders its quote.
     const quoted = m.reply_to_id ? messageById.get(m.reply_to_id) : undefined;
     const quote: QuoteInfo | undefined = quoted
       ? {
@@ -398,7 +446,15 @@ function ChatPaneInner({
           ownQuoted: quoted.sender_id === me.id,
           text: quoted.body,
         }
-      : undefined;
+      : m.reply_to
+        ? {
+            label:
+              m.reply_to.sender_id === me.id ? "You" : m.reply_to.sender_name,
+            hashKey: String(m.reply_to.sender_id),
+            ownQuoted: m.reply_to.sender_id === me.id,
+            text: m.reply_to.body_snippet,
+          }
+        : undefined;
 
     timeline.push(
       <MessageBubble
@@ -426,7 +482,15 @@ function ChatPaneInner({
         collapseAbove={collapseAbove}
         collapseBelow={collapseBelow}
         quote={quote}
-        onRetry={() => retryMessage(conversation.id, m.client_id, m.body)}
+        onQuoteClick={
+          quoted ? () => scrollToMessage(quoted.id) : undefined
+        }
+        // Replies reference the server id, so only persisted rows (id > 0)
+        // offer the action — an unacked optimistic bubble can't be quoted.
+        onReply={m.id > 0 ? () => setReplyTarget(m) : undefined}
+        onRetry={() =>
+          retryMessage(conversation.id, m.client_id, m.body, m.reply_to_id)
+        }
       />
     );
   });
@@ -561,7 +625,25 @@ function ChatPaneInner({
 
       <Composer
         disabled={state.socket !== "open"}
-        onSend={(body) => sendMessage(conversation.id, body)}
+        replyPreview={replyPreview}
+        onCancelReply={() => setReplyTarget(null)}
+        onSend={(body) => {
+          // The client-side summary paints the optimistic bubble's quote
+          // instantly; the ack replaces it with the server-derived one.
+          sendMessage(
+            conversation.id,
+            body,
+            replyTarget
+              ? {
+                  id: replyTarget.id,
+                  sender_id: replyTarget.sender_id,
+                  sender_name: memberName(conversation, replyTarget.sender_id),
+                  body_snippet: replyTarget.body.slice(0, REPLY_SNIPPET_LEN),
+                }
+              : undefined
+          );
+          setReplyTarget(null);
+        }}
         onTyping={() => sendTyping(conversation.id)}
         onComingSoon={comingSoon}
       />

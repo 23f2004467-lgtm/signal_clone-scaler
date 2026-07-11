@@ -40,6 +40,7 @@ function previewTick(
       ...last,
       conversation_id: c.id,
       reply_to_id: null,
+      reply_to: null,
       client_id: "",
       status: "sent",
     },
@@ -103,6 +104,9 @@ export default function ConversationList({
           placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setQuery(""); // Signal Desktop: Esc clears the search
+          }}
           aria-label="Search conversations"
           autoComplete="off"
         />

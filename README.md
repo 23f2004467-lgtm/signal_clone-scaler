@@ -1,15 +1,49 @@
 # Signal Clone
 
-A real-time chat application in the spirit of Signal: 1:1 and group messaging, delivery/read receipts (grey and blue ticks), typing indicators, online presence, and unread counts — built on Next.js, FastAPI, SQLite, and plain WebSockets.
+A real-time chat application in the spirit of Signal: 1:1 and group messaging, delivery/read receipts (Signal's circled-check ticks through sending → sent → delivered → read), typing indicators, online presence, unread counts, reply quotes, light/dark theming, and a phone/tablet/desktop responsive layout — built on Next.js, FastAPI, SQLite, and plain WebSockets.
 
 My guiding principle was boring, explainable architecture: no real-time libraries, no Redis, no ORM magic. Every pattern here is either straight from an official doc (FastAPI's WebSockets tutorial, react.dev's chat-connection effect example) or an obvious adaptation of one, and every deliberate simplification is written down below with a one-sentence "here's how I'd do it at scale" answer.
 
 ## Live demo
 
-- Frontend: `https://<app>.vercel.app`
-- Backend API + docs: `https://<api>.onrender.com` (interactive API docs at `/docs`)
+- Frontend: `https://signal-clone-scaler.vercel.app`
+- Backend API + docs: `https://signal-clone-scaler.onrender.com` (interactive API docs at `/docs`)
+- Uptime status page: https://stats.uptimerobot.com/JKUm71scOz (independent 5-minute health monitoring)
 
 Use the one-click **Login as Alice** / **Login as Bob** buttons on the login page — open both in separate browser windows to see real-time delivery, ticks, and typing indicators between them. Note: the backend runs on Render's free tier; if it has gone cold, first load can take ~30–60 s while the instance wakes (the client's reconnect loop rides this out automatically).
+
+## Bonus features — what shipped and what didn't
+
+Plain ledger, no hedging:
+
+- **Dark mode — shipped.** Light / Dark / System in Settings → Appearance, written as `data-theme` on `<html>`, persisted to localStorage, applied by an inline script before hydration (no flash); System follows `prefers-color-scheme` live.
+- **Reply quotes — shipped.** Hover/tap Reply on any bubble → preview bar above the composer (Esc cancels) → the send carries `reply_to_id`; the server validates the quoted message belongs to the same conversation and every serialized message carries a compact `reply_to` summary so quotes render even when the original is on an unloaded history page.
+- **Reactions — not built.**
+- **Attachments — not built** (the composer's attach/emoji/mic buttons show a "Coming Soon" toast).
+- **Disappearing messages — not built** ("Coming Soon" placeholder in settings).
+
+## Screenshots
+
+![Desktop, light theme — chat with reply quotes](docs/screenshots/desktop-light-chat-replies.png)
+*Desktop, light theme: two-pane shell, circled-check ticks, and reply quote blocks.*
+
+![Desktop, dark theme — chat](docs/screenshots/desktop-dark-chat.png)
+*Desktop, dark theme: the same conversation on the dark token set.*
+
+![Mobile — conversation list](docs/screenshots/mobile-list.png)
+*Mobile: single-pane conversation list with unread badges and previews.*
+
+![Mobile — chat](docs/screenshots/mobile-chat.png)
+*Mobile: full-screen chat pane with back navigation.*
+
+![Tablet — conversation list](docs/screenshots/tablet-list.png)
+*Tablet: the responsive middle ground per DESIGN_BRIEF.md.*
+
+![Group info panel](docs/screenshots/group-info-panel.png)
+*Group info panel: members, roles, and admin add/remove.*
+
+![Reply composer preview](docs/screenshots/reply-composer-preview.png)
+*Composing a reply: the preview bar above the composer (Esc to cancel).*
 
 ## Tech stack
 
@@ -24,10 +58,12 @@ Use the one-click **Login as Alice** / **Login as Bob** buttons on the login pag
 ## Repository layout
 
 ```
-render.yaml            # Render service config (~10 lines): docker runtime, free plan, rootDir backend,
-                       #   FRONTEND_ORIGIN env var (the CORS allow-list origin)
 backend/
   Dockerfile           # python:3.12-slim; CMD runs uvicorn --workers 1 on $PORT (exec'd so SIGTERM lands)
+  render.yaml          # Render service config: docker runtime, free plan, rootDir backend,
+                       #   FRONTEND_ORIGIN env var (the CORS allow-list origin). Note: Render
+                       #   Blueprints read render.yaml from the repo ROOT — copy it there if
+                       #   deploying via Blueprint; dashboard click-ops needs no file at all
   app/
     main.py            # app wiring: CORS, routers, /health, lifespan (create_all + seed-if-empty)
     db.py              # engine, PRAGMA listener (foreign_keys/WAL/busy_timeout), sessionmaker, get_db
@@ -38,16 +74,22 @@ backend/
     deps.py            # get_current_user (token -> sessions lookup)
     routers/           # auth, contacts, conversations, groups
     seed.py            # idempotent demo seed (runs on every cold start)
+  tests_ws_integration.py  # M1+M2 protocol integration suite (see Tests below)
+  tests_ws_m2.py           # receipts/typing/unread suite
+  tests_ws_m3.py           # groups + membership push suite
 frontend/
-  app/                 # App Router: login page, (chat) layout + two-pane shell
-  lib/                 # types.ts (WS events as a TS discriminated union), api.ts (fetch wrapper)
+  app/                 # App Router: login page, (chat) layout + two-pane shell, tokens.css (theme variables)
+  lib/                 # types.ts (WS events as a TS discriminated union), api.ts (fetch wrapper),
+                       #   receipts.ts (MIN-pointer tick derivation), conversation.ts, formatTimestamp.ts
   state/               # ChatProvider.tsx (socket, reconnect, heartbeat) + chatReducer.ts
-  components/          # ConversationList, ChatPane, MessageBubble, Composer, modals, Avatar, banner
+  components/          # ConversationList, ChatPane, MessageBubble, StatusTicks, Composer, modals, Avatar, banner
+docs/
+  screenshots/         # the images embedded above
 ```
 
 ## Setup (local development)
 
-Prerequisites: Python 3.12+, Node 18+.
+Prerequisites: Python 3.12+, Node 20.9+ (required by Next.js 16).
 
 **Backend** (serves on `http://localhost:8000`):
 
@@ -69,16 +111,35 @@ npm install
 npm run dev
 ```
 
-Create `frontend/.env.local` pointing at the local backend:
+No env file is required for local dev: the client defaults to `http://localhost:8000` and derives the WS URL from the API URL (`http → ws`), so the two can never point at different hosts. To point elsewhere, create `frontend/.env.local`:
 
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
+# optional — derived from NEXT_PUBLIC_API_URL when unset
 NEXT_PUBLIC_WS_URL=ws://localhost:8000
 ```
 
 **Logging in:** authentication is mocked with a fixed OTP. Log in with any seeded phone number (or register a fresh, unused one) and enter **`123456`** as the code — or skip typing entirely with the one-click **Login as Alice** / **Login as Bob** buttons. Open two browsers (or one normal + one incognito window), log in as Alice in one and Bob in the other, and chat.
 
 A note on dev mode: `--reload` restarts the backend on every file save, which drops live sockets (abnormal close 1006). That's expected; the client's exponential-backoff reconnect picks them back up.
+
+## Tests
+
+Three integration suites in `backend/` exercise the real WS protocol end-to-end against a live backend. Each suite runs against its **own fresh throwaway database** — never the dev `signal.db`, and never a database another suite already mutated, because the checks assume exactly the seed state. The pattern per suite (full instructions in each file's docstring):
+
+```bash
+cd backend
+rm -f /tmp/ws_m2.db*
+DATABASE_URL=sqlite:////tmp/ws_m2.db .venv/bin/uvicorn app.main:app --port 8000 &
+.venv/bin/python tests_ws_m2.py
+# then kill the server, and repeat with a fresh DB file for the other suites
+```
+
+- `tests_ws_integration.py` — M1+M2 protocol: ack/new/delivered, persist-first, offline catch-up, idempotent retry, bad-token 1008, ping/pong, error frames
+- `tests_ws_m2.py` — receipts: live + on-connect delivered, read broadcast, monotonic pointers, typing relay (nothing persisted), non-member rejection
+- `tests_ws_m3.py` — groups: `conversation.created` push, group fan-out, MIN read semantics, admin add/remove (403 for non-admins), rename push
+
+The only test dependency is the `websockets` pip package (test-only; deliberately not in `requirements.txt`) plus stdlib `urllib` for REST.
 
 ## Architecture overview
 
@@ -92,8 +153,8 @@ Two free platforms, two origins. Vercel serves the Next.js frontend; Render runs
            ▼
    Browser (Alice / Bob)
            │
-           │  https://<api>.onrender.com/api/*     (REST — CORS applies)
-           │  wss://<api>.onrender.com/ws?token=…  (live events — CORS does not)
+           │  https://signal-clone-scaler.onrender.com/api/*     (REST — CORS applies)
+           │  wss://signal-clone-scaler.onrender.com/ws?token=…  (live events — CORS does not)
            ▼
 ┌─────────────────────────────────────────────────────┐
 │  Render free web service — TLS terminated at edge,  │
@@ -126,7 +187,7 @@ Two free platforms, two origins. Vercel serves the Next.js frontend; Render runs
 | `delivered → read` | Recipient's client | Sends `read` when the chat is open/visible; server advances the read pointer and broadcasts |
 | `sending → failed` | Sender's client only | No ack before socket close → "tap to retry"; retry reuses the same client_id, and `UNIQUE(sender_id, client_id)` makes it idempotent |
 
-Ticks: clock = sending · one grey = sent · two grey = delivered by **all** other members · two blue = read by **all** (WhatsApp-style `MIN()`-across-members semantics).
+Ticks: spinner = sending · one circled check = sent · two circled checks = delivered by **all** other members · two **filled** circled checks = read by **all** (`MIN()`-across-members semantics). Glyphs follow Signal's v3 status icons: checks inside circles, and read state is filled — never blue.
 
 ## Database schema
 
@@ -184,7 +245,7 @@ messages (
   conversation_id  INTEGER NOT NULL REFERENCES conversations(id),
   sender_id        INTEGER NOT NULL REFERENCES users(id),
   body             TEXT NOT NULL,
-  reply_to_id      INTEGER REFERENCES messages(id),       -- nullable; supports the reply-quotes bonus
+  reply_to_id      INTEGER REFERENCES messages(id),       -- nullable; powers the reply-quotes bonus (implemented)
   client_id        TEXT NOT NULL,
   created_at       TEXT NOT NULL,
   UNIQUE (sender_id, client_id)                           -- makes retry-after-reconnect idempotent
@@ -230,7 +291,7 @@ The single WebSocket endpoint is `wss://<api>/ws?token=<session token>`. Every f
 
 | Type | Payload | Trigger / server action |
 |---|---|---|
-| `message.send` | `conversation_id, client_id, body, reply_to_id?` | Validate membership → INSERT → `message.ack` to sender → `message.new` to other online members → advance their delivered pointers → `receipt.delivered` back |
+| `message.send` | `conversation_id, client_id, body, reply_to_id?` | Validate membership (and, for replies, that `reply_to_id` references a message in the SAME conversation — else an `invalid_reply_to` error frame) → INSERT → `message.ack` to sender → `message.new` to other online members → advance their delivered pointers → `receipt.delivered` back |
 | `typing` | `conversation_id` | Keystroke, throttled to ~1 per 2–3 s; pure relay to online members, never touches the DB |
 | `read` | `conversation_id, up_to_message_id` | Conversation open/visible; UPDATE read pointer → broadcast `receipt.read` |
 | `ping` | — | Every ~25 s; heartbeat that defeats proxy idle timeouts and holds off free-tier spin-down |
@@ -251,6 +312,8 @@ The single WebSocket endpoint is `wss://<api>/ws?token=<session token>`. Every f
 | `error` | `code, detail` | Offending client; logged/toasted on malformed frames |
 | `pong` | — | Reply to the client's `ping` heartbeat |
 
+The `message` object in `message.ack` / `message.new` — and every row of `GET /api/conversations/{id}/messages` — is one shape: `{id, conversation_id, sender_id, body, reply_to_id, reply_to, client_id, created_at}`. For replies (the reply-quotes bonus), `reply_to` is a compact server-derived summary of the quoted message, `{id, sender_id, sender_name, body_snippet}` (one extra query per send / history page), so the client can render the quote block even when the original message sits on an unloaded history page. For non-replies, `reply_to_id` and `reply_to` are `null`.
+
 ## Assumptions and deliberate simplifications
 
 Each of these is a conscious trade against the ~24-hour budget, with the scale answer attached.
@@ -261,7 +324,22 @@ Each of these is a conscious trade against the ~24-hour budget, with the scale a
 - **Ephemeral free-tier disk — data resets on every redeploy, restart, or spin-down. By design.** Render's free filesystem doesn't persist (SQLite explicitly included), so the startup lifespan runs `create_all` plus an idempotent seed-if-empty: every cold start boots into a fresh, demo-ready state instead of an empty one. Never promised persistence; in production this is one persistent disk (or the self-hosted volume below) away.
 - **Single uvicorn worker, enforced twice** (`--workers 1` in the Dockerfile CMD; never set `WEB_CONCURRENCY`). At scale: keep the per-process manager, add Redis pub/sub between workers — each worker publishes inbound messages and relays to its own local sockets.
 - **Keep-warm pingers.** Two independent free monitors (cron-job.org + UptimeRobot) GET `/health` every 5 minutes so the free instance never idles the 15 minutes needed to spin down, and an evaluator gets a warm app at any hour. This is a tolerated workaround, not a feature — the sanctioned fix is a paid instance. Client-side belt-and-braces: exponential-backoff reconnect that outlasts a ~60 s cold start, a refetch-on-open that doubles as offline delivery, and the 25 s heartbeat while a tab is open.
-- **Other mocks and cuts:** last seen is one timestamp written on disconnect (live presence itself is real — online ⇔ present in the manager dict); avatars are initials + a color hash; search is client-side filtering; calls, stories, linked devices, and disappearing messages are "Coming Soon" placeholders; attachments, message edit/delete, and reactions were cut as worst cost/value under the time budget.
+- **Other mocks and cuts:** last seen is one timestamp written on disconnect (live presence itself is real — online ⇔ present in the manager dict); avatars are initials + a color hash; conversation-list search is a client-side filter of the already-fetched list (finding users to add as contacts is a real REST query, `GET /api/users/search`); calls, stories, linked devices, and disappearing messages are "Coming Soon" placeholders; attachments, message edit/delete, and reactions were cut as worst cost/value under the time budget. Of the planned bonuses, dark mode and reply quotes made it in (the `reply_to_id` column existed from day one, so replies cost one validation, one summary query, and the quote-block UI); reactions did not.
+
+### Mock vs real, at a glance
+
+| REAL (fully implemented) | MOCKED or NOT BUILT (with the honest story) |
+|---|---|
+| Message persistence — SQLite, source of truth | **OTP** — fixed `123456`, no SMS; sessions themselves are real rows |
+| Real-time delivery over WebSockets | **Encryption** — lock banner only; with real E2EE the persist-then-fan-out path is unchanged |
+| Delivery/read receipts — derived from stored pointers, correct even offline | **Last seen** — one timestamp written on disconnect; presence itself is real |
+| Typing indicators (real relay, deliberately never persisted) | **Avatars** — initials + color hash, no upload |
+| Unread counts — computed in SQL | **Calls / stories / linked devices / disappearing messages** — "Coming Soon" placeholders |
+| Groups with roles + admin add/remove/rename, pushed live | **Conversation-list search** — client-side filter (contact search is a real REST query) |
+| Sessions, reconnect + catch-up, optimistic send with idempotent retry | **Multi-tab** — one socket per user; new login replaces old |
+| Dark mode — Light/Dark/System, persisted, no-flash | **Not built:** reactions, attachments, message edit/delete |
+| Reply quotes — server-validated, quote block UI | |
+| Responsive layout — phone/tablet/desktop per DESIGN_BRIEF.md | |
 
 ## How I'd self-host this
 

@@ -25,3 +25,4 @@ out/
 
 # Claude Code local config
 .claude/
+.gstack/

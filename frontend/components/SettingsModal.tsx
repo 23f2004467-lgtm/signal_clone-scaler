@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Avatar from "./Avatar";
 import styles from "./SettingsModal.module.css";
 
 // Settings — true centered modal (DESIGN.md §3.18): scrim, 640×480 card, left
@@ -50,57 +51,6 @@ function resolveTheme(choice: ThemeChoice): "light" | "dark" {
       : "light";
   }
   return choice;
-}
-
-// --- Self-contained initials avatar (DESIGN.md §3.3) -----------------------
-// Duplicated locally so this file imports nothing beyond React + its own CSS
-// module; the wiring milestone may swap in the shared Avatar.
-
-const AVATAR_PAIRS = [
-  { bg: "var(--avatar-a100-bg, #e3e3fe)", fg: "var(--avatar-a100-fg, #3838f5)" },
-  { bg: "var(--avatar-a110-bg, #dde7fc)", fg: "var(--avatar-a110-fg, #1251d3)" },
-  { bg: "var(--avatar-a120-bg, #d8e8f0)", fg: "var(--avatar-a120-fg, #086da0)" },
-  { bg: "var(--avatar-a130-bg, #cde4cd)", fg: "var(--avatar-a130-fg, #067906)" },
-  { bg: "var(--avatar-a140-bg, #eae0fd)", fg: "var(--avatar-a140-fg, #661aff)" },
-  { bg: "var(--avatar-a150-bg, #f5e3fe)", fg: "var(--avatar-a150-fg, #9f00f0)" },
-  { bg: "var(--avatar-a160-bg, #f6d8ec)", fg: "var(--avatar-a160-fg, #b8057c)" },
-  { bg: "var(--avatar-a170-bg, #f5d7d7)", fg: "var(--avatar-a170-fg, #be0404)" },
-  { bg: "var(--avatar-a180-bg, #fef5d0)", fg: "var(--avatar-a180-fg, #836b01)" },
-  { bg: "var(--avatar-a190-bg, #eae6d5)", fg: "var(--avatar-a190-fg, #7d6f40)" },
-  { bg: "var(--avatar-a200-bg, #d2d2dc)", fg: "var(--avatar-a200-fg, #4f4f6d)" },
-  { bg: "var(--avatar-a210-bg, #d7d7d9)", fg: "var(--avatar-a210-fg, #5c5c5c)" },
-];
-
-function avatarPair(key: string) {
-  let sum = 0;
-  for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i);
-  return AVATAR_PAIRS[sum % AVATAR_PAIRS.length];
-}
-
-function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/);
-  const first = words[0]?.[0] ?? "?";
-  const last = words.length > 1 ? words[words.length - 1][0] : "";
-  return (first + last).toUpperCase();
-}
-
-function InitialsAvatar({ name, size }: { name: string; size: number }) {
-  const pair = avatarPair(name);
-  return (
-    <span
-      className={styles.avatar}
-      style={{
-        width: size,
-        height: size,
-        fontSize: Math.round(size * 0.42),
-        background: pair.bg,
-        color: pair.fg,
-      }}
-      aria-hidden="true"
-    >
-      {initialsOf(name)}
-    </span>
-  );
 }
 
 // --- Section glyphs (nav 20px, placeholder 32px) [approx shapes] -----------
@@ -236,7 +186,9 @@ export default function SettingsModal({ user, onClose }: Props) {
     if (section === "profile") {
       return (
         <div className={styles.profile}>
-          <InitialsAvatar name={user.name} size={80} />
+          {/* No hashKey: hashes on the name, matching the sidebar's own
+              avatar (page.tsx), which also only ever sees the name. */}
+          <Avatar name={user.name} size={80} />
           <p className={styles.profileName}>{user.name}</p>
           <p className={styles.profilePhone}>{user.phone}</p>
         </div>

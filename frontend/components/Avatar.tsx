@@ -21,13 +21,18 @@ const AVATAR_PAIRS = [
   { bg: "var(--avatar-a210-bg)", fg: "var(--avatar-a210-fg)" },
 ];
 
-// §3.3 hash rule: sum of charCodes of (user id, else name) % 12 — the same
-// rule the compose takeovers' local InitialsAvatar uses, so a contact keeps
-// one color across every surface.
+// §3.3 hash rule: sum of charCodes of (user id, else name) % 12 — one hash
+// for every surface, so a contact keeps one color across the whole app.
 function pairOf(key: string) {
   let sum = 0;
   for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i);
   return AVATAR_PAIRS[sum % AVATAR_PAIRS.length];
+}
+
+// The foreground half alone, for text tinted to match a person's avatar:
+// group-bubble author names and reply-quote accents (MessageBubble, ChatPane).
+export function avatarFgColor(hashKey: string): string {
+  return pairOf(hashKey).fg;
 }
 
 // "Alice Chen" -> "AC", "bob" -> "B" (first word + last word, uppercased).

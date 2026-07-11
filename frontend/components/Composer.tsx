@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -72,6 +73,17 @@ const iconMic = (
   </svg>
 );
 
+const iconClose = (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path
+      d="m5.5 5.5 9 9m0-9-9 9"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 const iconSend = (
   <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
     <path
@@ -81,8 +93,20 @@ const iconSend = (
   </svg>
 );
 
+// What the reply preview bar renders (§3.10 reply state) — display-ready
+// strings resolved by ChatPane, which owns the reply-target state.
+export interface ReplyPreview {
+  label: string; // "You" or the quoted author's display name
+  text: string; // the quoted body (the bar ellipsizes to one line)
+  accent: string; // CSS color for the §3.7 accent bar + author tint
+}
+
 interface Props {
   disabled: boolean;
+  // Non-null while composing a reply: the preview bar renders above the
+  // composer row, and the eventual send carries the reply reference.
+  replyPreview?: ReplyPreview | null;
+  onCancelReply?: () => void; // × button and Esc (§4 Esc priority order)
   onSend: (body: string) => void;
   onTyping: () => void;
   /** §3.14: mocked controls (emoji/mic/attach) open a `Coming Soon` toast. */
@@ -91,6 +115,8 @@ interface Props {
 
 export default function Composer({
   disabled,
+  replyPreview = null,
+  onCancelReply,
   onSend,
   onTyping,
   onComingSoon,
@@ -137,78 +163,120 @@ export default function Composer({
   }
 
   // Enter sends; Shift+Enter falls through to the native newline (§4).
+  // Esc cancels an in-progress reply — first in the §4 Esc priority order.
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
+    } else if (e.key === "Escape" && replyPreview && onCancelReply) {
+      e.preventDefault();
+      onCancelReply();
     }
   }
+
+  // Starting a reply puts the caret in the input — the tap on Reply signals
+  // intent to type, and it also puts Esc-to-cancel in reach.
+  useEffect(() => {
+    if (replyPreview) inputRef.current?.focus();
+  }, [replyPreview]);
 
   const hasText = body.trim() !== "";
 
   return (
-    <form className={styles.composer} onSubmit={handleSubmit}>
-      {/* Mocked control (§3.10) — the emoji picker is cut; toast instead. */}
-      <button
-        className={styles.iconButton}
-        type="button"
-        aria-label="Insert emoji (coming soon)"
-        title="Coming Soon"
-        disabled={disabled}
-        onClick={onComingSoon}
-      >
-        {iconEmoji}
-      </button>
-
-      <textarea
-        className={styles.input}
-        ref={inputRef}
-        rows={1}
-        placeholder={disabled ? "Waiting to reconnect…" : "Message"}
-        value={body}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        aria-label="Message"
-        autoComplete="off"
-      />
-
-      {/* Mic ghost swaps to the ultramarine send circle on first character. */}
-      <span className={styles.sendSlot}>
-        {hasText ? (
+    <form className={styles.composerArea} onSubmit={handleSubmit}>
+      {/* Reply preview bar (§3.10 reply state): §3.7 quote anatomy on an
+          input-bg strip above the composer row, dismissed by × or Esc. */}
+      {replyPreview && (
+        <div className={styles.replyBar}>
+          <span
+            className={styles.replyAccent}
+            style={{ background: replyPreview.accent }}
+            aria-hidden="true"
+          />
+          <span className={styles.replyBody}>
+            <span
+              className={styles.replyLabel}
+              style={{ color: replyPreview.accent }}
+            >
+              Replying to {replyPreview.label}
+            </span>
+            <span className={styles.replyText}>{replyPreview.text}</span>
+          </span>
           <button
-            className={styles.sendButton}
-            type="submit"
-            aria-label="Send message"
-            disabled={disabled}
-          >
-            {iconSend}
-          </button>
-        ) : (
-          <button
-            className={`${styles.iconButton} ${styles.slotButton}`}
+            className={styles.replyClose}
             type="button"
-            aria-label="Record voice message (coming soon)"
-            title="Coming Soon"
-            disabled={disabled}
-            onClick={onComingSoon}
+            aria-label="Cancel reply"
+            title="Cancel reply"
+            onClick={onCancelReply}
           >
-            {iconMic}
+            {iconClose}
           </button>
-        )}
-      </span>
+        </div>
+      )}
 
-      {/* Mocked control (§3.10) — attachments are cut; toast instead. */}
-      <button
-        className={styles.iconButton}
-        type="button"
-        aria-label="Attach file (coming soon)"
-        title="Coming Soon"
-        disabled={disabled}
-        onClick={onComingSoon}
-      >
-        {iconAttach}
-      </button>
+      <div className={styles.composer}>
+        {/* Mocked control (§3.10) — the emoji picker is cut; toast instead. */}
+        <button
+          className={styles.iconButton}
+          type="button"
+          aria-label="Insert emoji (coming soon)"
+          title="Coming Soon"
+          disabled={disabled}
+          onClick={onComingSoon}
+        >
+          {iconEmoji}
+        </button>
+
+        <textarea
+          className={styles.input}
+          ref={inputRef}
+          rows={1}
+          placeholder={disabled ? "Waiting to reconnect…" : "Message"}
+          value={body}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          aria-label="Message"
+          autoComplete="off"
+        />
+
+        {/* Mic ghost swaps to the ultramarine send circle on first character. */}
+        <span className={styles.sendSlot}>
+          {hasText ? (
+            <button
+              className={styles.sendButton}
+              type="submit"
+              aria-label="Send message"
+              disabled={disabled}
+            >
+              {iconSend}
+            </button>
+          ) : (
+            <button
+              className={`${styles.iconButton} ${styles.slotButton}`}
+              type="button"
+              aria-label="Record voice message (coming soon)"
+              title="Coming Soon"
+              disabled={disabled}
+              onClick={onComingSoon}
+            >
+              {iconMic}
+            </button>
+          )}
+        </span>
+
+        {/* Mocked control (§3.10) — attachments are cut; toast instead. */}
+        <button
+          className={styles.iconButton}
+          type="button"
+          aria-label="Attach file (coming soon)"
+          title="Coming Soon"
+          disabled={disabled}
+          onClick={onComingSoon}
+        >
+          {iconAttach}
+        </button>
+      </div>
     </form>
   );
 }

@@ -1,6 +1,9 @@
-// Chat-pane time formatting (DESIGN.md §3.2 format table + §3.5 day labels
-// + §3.6 in-bubble metadata). Kept beside the components that consume it —
-// lib/ is frozen functional code and Builder A owns the list's own util.
+// Chat-pane time formatting (DESIGN.md §3.5 day labels + §3.6 in-bubble
+// metadata). Deliberately separate from lib/formatTimestamp.ts: the list's
+// §3.2 format collapses to dates ("Mon", "Mar 5") because rows have no other
+// date context, while the timeline's day-divider chips already carry the
+// date — so bubbles only ever show "Now" / "{n}m" / clock time, and dividers
+// use the §3.5 "Today"/"Yesterday" labels. Two specs, two small utils.
 
 const MINUTE = 60_000;
 const HOUR = 3_600_000;
