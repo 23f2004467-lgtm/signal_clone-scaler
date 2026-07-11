@@ -1,0 +1,16 @@
+# Render Blueprint -- the whole host config in a few reviewable lines.
+# Render reads render.yaml from the REPO ROOT, so paths here are written
+# relative to the root (rootDir: backend); copy or symlink this file to the
+# root when creating the service from a Blueprint. Dashboard click-ops with
+# the same settings works too.
+services:
+  - type: web
+    name: signal-clone-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: FRONTEND_ORIGIN
+        sync: false # set to the exact Vercel production URL in the dashboard
