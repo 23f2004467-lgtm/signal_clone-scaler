@@ -19,11 +19,13 @@ FIXED_OTP = "123456"
 
 @router.post("/register", response_model=schemas.UserOut, status_code=201)
 def register(body: schemas.RegisterIn, db: Session = Depends(get_db)):
+    # .first(), not scalar_one_or_none(): the phone and the username can each
+    # collide with a DIFFERENT existing user (two rows) — still just a 409.
     taken = db.execute(
         select(models.User).where(
             or_(models.User.phone == body.phone, models.User.username == body.username)
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if taken is not None:
         raise HTTPException(status_code=409, detail="Phone or username already registered")
     user = models.User(

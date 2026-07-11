@@ -2,22 +2,31 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, getToken, saveSession } from "@/lib/api";
+import { api, ApiError, getToken, saveSession } from "@/lib/api";
 import styles from "./login.module.css";
 
 // Two-step mocked login (blueprint §7 + §10) in Signal's staged-card dress
 // (DESIGN.md §3.20): logo lockup, phone → OTP stages with a 250ms slide,
 // ultramarine primary pills, Alice/Bob demo ghost pills below the card, and
 // the nonprofit footer at the bottom of the viewport. The demo buttons run
-// both steps in one click for the seeded users.
+// both steps in one click for the seeded users. A third "register" stage
+// (POST /api/auth/register) creates an account, then funnels straight into
+// the same OTP stage — new accounts sign in through the normal login flow.
 
 const DEMO_OTP = "123456";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"identifier" | "otp">("identifier");
+  const [step, setStep] = useState<"identifier" | "otp" | "register">(
+    "identifier"
+  );
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
+  // Register-stage fields, separate from the login identifier so switching
+  // between the stages never clobbers a half-typed value.
+  const [regPhone, setRegPhone] = useState("");
+  const [regUsername, setRegUsername] = useState("");
+  const [regDisplayName, setRegDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -50,6 +59,33 @@ export default function LoginPage() {
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
+      setBusy(false);
+    }
+  }
+
+  async function registerAccount(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const phone = regPhone.trim();
+      await api.register(phone, regUsername.trim(), regDisplayName.trim());
+      // New accounts still sign in through the normal flow: login "sends"
+      // the mocked OTP, then the existing OTP stage verifies it.
+      await api.login(phone);
+      setIdentifier(phone);
+      setStep("otp");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError("Phone or username already taken");
+      } else if (err instanceof ApiError && err.status === 422) {
+        // FastAPI's 422 detail is an array (not a string), so the wrapper
+        // falls back to the status text — translate it for humans.
+        setError("Phone must be at least 3 characters");
+      } else {
+        setError(err instanceof Error ? err.message : "Registration failed");
+      }
+    } finally {
       setBusy(false);
     }
   }
@@ -118,6 +154,78 @@ export default function LoginPage() {
                 disabled={busy || identifier.trim() === ""}
               >
                 {busy ? "Sending…" : "Next"}
+              </button>
+              <button
+                className={styles.linkButton}
+                type="button"
+                onClick={() => {
+                  setStep("register");
+                  setError(null);
+                }}
+              >
+                New here? Create account
+              </button>
+            </form>
+          </div>
+        ) : step === "register" ? (
+          <div className={styles.stage} key="register">
+            <form className={styles.form} onSubmit={registerAccount}>
+              <label className={styles.label} htmlFor="reg-phone">
+                Phone number
+              </label>
+              <input
+                id="reg-phone"
+                className={styles.input}
+                value={regPhone}
+                onChange={(e) => setRegPhone(e.target.value)}
+                placeholder="+15550000005"
+                autoFocus
+                required
+              />
+              <label className={styles.label} htmlFor="reg-username">
+                Username
+              </label>
+              <input
+                id="reg-username"
+                className={styles.input}
+                value={regUsername}
+                onChange={(e) => setRegUsername(e.target.value)}
+                placeholder="carol"
+                autoComplete="off"
+                required
+              />
+              <label className={styles.label} htmlFor="reg-display-name">
+                Display name
+              </label>
+              <input
+                id="reg-display-name"
+                className={styles.input}
+                value={regDisplayName}
+                onChange={(e) => setRegDisplayName(e.target.value)}
+                placeholder="Carol Chen"
+                required
+              />
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                disabled={
+                  busy ||
+                  regPhone.trim() === "" ||
+                  regUsername.trim() === "" ||
+                  regDisplayName.trim() === ""
+                }
+              >
+                {busy ? "Creating…" : "Create account"}
+              </button>
+              <button
+                className={styles.linkButton}
+                type="button"
+                onClick={() => {
+                  setStep("identifier");
+                  setError(null);
+                }}
+              >
+                Back to sign in
               </button>
             </form>
           </div>

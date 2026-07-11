@@ -11,7 +11,7 @@ import GroupInfoPanel, {
 import NewChatModal, { type NewChatContact } from "@/components/NewChatModal";
 import NewGroupModal from "@/components/NewGroupModal";
 import SettingsModal from "@/components/SettingsModal";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { User } from "@/lib/types";
 import { useChat } from "@/state/ChatProvider";
 import styles from "./chat.module.css";
@@ -173,6 +173,23 @@ export default function ChatPage() {
   // the current surface open so the user can simply try again.
 
   function handleSelectContact(contactId: number) {
+    // A pick that isn't in the address book came from server search — save it
+    // as a contact so the book grows through natural use. Fire-and-forget:
+    // 409 ("Already in contacts") is fine, and no failure blocks the DM.
+    if (contacts !== null && !contacts.some((c) => c.id === contactId)) {
+      api
+        .addContact(contactId)
+        .then((added) => {
+          // Contacts load once per session; append so the next compose
+          // surface sees the new entry without a refetch.
+          setContacts((prev) => (prev ? [...prev, added] : prev));
+        })
+        .catch((err: unknown) => {
+          if (!(err instanceof ApiError && err.status === 409)) {
+            console.error("could not add contact:", err);
+          }
+        });
+    }
     openDm(contactId)
       .then(() => switchCompose("none"))
       .catch((err: unknown) => console.error("could not open DM:", err));
