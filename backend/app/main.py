@@ -56,7 +56,12 @@ def root():
     return {"service": "Signal Clone API", "docs": "/docs", "health": "/health"}
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
-    """Unprefixed on purpose: the keep-warm pinger's target."""
+    """Unprefixed on purpose: the keep-warm pingers' target.
+
+    HEAD is explicit because UptimeRobot probes with HEAD, not GET —
+    FastAPI's @app.get() alone would answer it with 405 and the monitor
+    would report the service down while it is actually fine.
+    """
     return {"ok": True}
