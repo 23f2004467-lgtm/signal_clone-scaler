@@ -1,0 +1,206 @@
+/* Two-pane app shell (DESIGN.md §2): 320px list | chat, 100dvh, single-pane
+   stack navigation ≤640px. The ReconnectBanner strip sits above the grid
+   inside .frame, so showing it shifts the panes down instead of overlaying. */
+
+.frame {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-secondary);
+  /* Notched phones (DESIGN_BRIEF rule 3). */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  overflow: hidden;
+}
+
+.shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.container {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  /* One explicit constrained row: without this the implicit `auto` row grows
+     with a tall timeline, pushing the composer past the viewport and killing
+     the message region's scroll. */
+  grid-template-rows: minmax(0, 100%);
+}
+
+/* --- Left pane --- */
+
+.sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-secondary);
+  /* THE pane divider — the only border between panes (§2). */
+  border-right: 1px solid var(--color-border-pane);
+}
+
+/* Header row (§3.1): 52px, 0 16px padding, avatar → Chats → pencil → ⋮. */
+.sidebarHeader {
+  height: calc(52px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 16px 0;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Own 28px avatar, opens Settings. */
+.avatarButton {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-right: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.sidebarTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--font-title-medium);
+  letter-spacing: -0.17px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* §3.1 icon-button: 20px glyph, 4px padding, 4px radius, hover overlay. */
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-icon);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--color-overlay-hover);
+  }
+}
+
+/* DESIGN_BRIEF: ≥44×44 tap targets on touch — invisible extended hit area. */
+@media (pointer: coarse) {
+  .iconButton::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+/* ⋮ sits 4px after the pencil (§3.1). */
+.menuAnchor {
+  position: relative;
+  display: inline-flex;
+  margin-left: 4px;
+}
+
+/* Invisible click-away layer under the menu. */
+.menuScrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) - 1);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-modal);
+  min-width: 160px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-modal);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .menuItem:hover {
+    background: var(--color-overlay-hover);
+  }
+}
+
+.sidebarStatus {
+  padding: 24px 16px;
+  text-align: center;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary);
+}
+
+/* No danger token in the spec palette — Signal's saturated red pair. */
+.errorText {
+  color: var(--avatar-a170-fg);
+}
+
+/* --- Right pane --- */
+
+.main {
+  position: relative; /* anchors the group info panel overlay (M3) */
+  min-width: 0; /* lets the ChatPane shrink instead of overflowing */
+  display: flex;
+  background: var(--color-bg-primary);
+}
+
+/* The GroupInfoPanel overlays the right edge of the chat pane (§3.17); the
+   panel itself only knows its 320px width and slide-in. */
+.infoPanelAnchor {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+}
+
+/* --- Phone (≤640px, DESIGN_BRIEF): single pane, stack navigation. List is
+   home; a selection (.chatOpen) shows the chat full-screen; ChatPane's back
+   chevron clears the selection. Instant swap per §2. --- */
+
+@media (max-width: 640px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+  }
+
+  .chatOpen .sidebar {
+    display: none;
+  }
+
+  .container:not(.chatOpen) .main {
+    display: none;
+  }
+}

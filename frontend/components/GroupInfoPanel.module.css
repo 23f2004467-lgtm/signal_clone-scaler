@@ -1,0 +1,416 @@
+/* Group info panel (DESIGN.md §3.17). The parent anchors it to the right
+   edge of the chat pane; the panel itself only knows its size and slide. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  height: 100%;
+  background: var(--color-bg-secondary, #f0f0f0);
+  border-left: 1px solid var(--color-border-pane, rgba(0, 0, 0, 0.16));
+  z-index: var(--z-banner, 20);
+  overflow: hidden;
+  animation: panel-in 250ms ease-out; /* --transition-medium */
+  font-family: var(--font-family, Inter, -apple-system, system-ui, "Segoe UI",
+      "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif);
+  color: var(--color-text-primary, #1b1b1b);
+}
+
+@keyframes panel-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+/* DESIGN_BRIEF: pane slides become instant under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  flex-shrink: 0;
+  padding: 0 16px;
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-icon, #3b3b3b);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .iconButton::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+.title {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.17px;
+  margin: 0 0 0 8px;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Hero: 80px group avatar + name + member count. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  text-align: center;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  max-width: 100%;
+}
+
+.groupName {
+  /* --font-title-2: 600 20px/26px */
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.34px;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iconButtonSmall {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-icon-muted, #848484);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .iconButtonSmall:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+    color: var(--color-icon, #3b3b3b);
+  }
+}
+
+.iconButtonSmall:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .iconButtonSmall::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
+}
+
+.renameInput {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 32px;
+  border-radius: var(--radius-bubble, 18px);
+  background: var(--color-input-bg, #e9e9e9);
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-text-primary, #1b1b1b);
+}
+
+.renameInput:focus-visible {
+  outline: none;
+  border-color: var(--ultramarine, #2c6bed);
+}
+
+@media (max-width: 640px) {
+  .renameInput {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+.memberCount {
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary, #5e5e5e);
+  margin: 2px 0 0;
+}
+
+.sectionHeader {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #5e5e5e);
+  padding: 16px 16px 4px;
+  margin: 0;
+}
+
+.tileWrap {
+  position: relative;
+}
+
+/* ListTile pattern (§3.15). */
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Only the interactive tiles (Add members) get pointer + hover. */
+button.tile {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+button.tile:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: -2px;
+}
+
+.tileText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.tileTitleRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.tileTitle {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tileSubtitle {
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--color-text-secondary, #5e5e5e);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adminBadge {
+  /* 11px caption on an overlay well. */
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.06px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  color: var(--color-text-secondary, #5e5e5e);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.iconTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  color: var(--color-icon, #3b3b3b);
+  flex-shrink: 0;
+}
+
+.addLabel {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  color: var(--color-link, #2c6bed);
+}
+
+.kebab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-icon, #3b3b3b);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.kebab:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+/* Hover-reveal is a hover-capable-device affordance only (DESIGN_BRIEF rule
+   5); on touch the kebab is always visible — no hidden information. */
+@media (hover: hover) {
+  .kebab {
+    opacity: 0;
+  }
+
+  .tile:hover .kebab,
+  .tileWrap:focus-within .kebab,
+  .kebab[aria-expanded="true"] {
+    opacity: 1;
+  }
+
+  .kebab:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+@media (pointer: coarse) {
+  .kebab::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+/* Per-row action menu [approx — Signal-styled tokens]. */
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: default;
+}
+
+.menu {
+  position: absolute;
+  top: 42px;
+  right: 16px;
+  z-index: 5;
+  min-width: 176px;
+  padding: 4px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-modal, #ffffff);
+  box-shadow: var(--shadow-modal, 0 8px 24px rgba(0, 0, 0, 0.24));
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm, 4px);
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  color: var(--color-text-primary, #1b1b1b);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .menuItem:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.menuItem:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: -2px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 100%;
+  font-weight: 600;
+  user-select: none;
+}
+
+/* Presence (M3): a wrapper so the dot can pin to the avatar's corner. */
+.avatarWrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.onlineDot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--online, #3ba55d);
+  /* ring in the panel background so the dot reads as sitting ON the avatar */
+  border: 2px solid var(--color-bg-secondary, #f0f0f0);
+}

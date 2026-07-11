@@ -1,0 +1,60 @@
+/* Toast (DESIGN.md §3.14): fixed pill, bottom-center, 24px from the bottom
+   edge. One at a time — the parent replaces the toast object and the enter
+   animation restarts. 120ms fade + 8px translateY in/out, 3s auto-dismiss. */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: var(--z-toast, 200);
+  max-width: 320px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-toast-bg, #2e2e2e);
+  color: var(--color-toast-text, #e9e9e9);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  box-shadow: var(--shadow-toast, 0 4px 12px rgba(0, 0, 0, 0.24));
+  pointer-events: none;
+  user-select: none;
+  /* No fill mode: with zero delay `backwards` adds nothing, and a frozen
+     animation clock (hidden/background documents) would pin the from-frame's
+     opacity 0 — default fill keeps the resting style visible. */
+  animation: toast-in var(--transition-fast, 120ms ease-out);
+}
+
+.leaving {
+  animation: toast-out var(--transition-fast, 120ms ease-out) forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+/* Reduced motion: instant swap, no slide (§2 hardening). */
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .leaving {
+    animation-duration: 1ms;
+  }
+}

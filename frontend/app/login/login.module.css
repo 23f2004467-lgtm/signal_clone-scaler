@@ -1,0 +1,235 @@
+/* Login / onboarding (DESIGN.md §3.20): full-viewport left-pane gray, staged
+   360px card on the modal surface, ultramarine primary pills, demo ghost
+   pills below the card, nonprofit footer at the bottom of the viewport. */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--color-bg-secondary);
+  padding: 24px 16px calc(48px + env(safe-area-inset-bottom));
+}
+
+.card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--color-bg-modal);
+  border-radius: var(--radius-md);
+  padding: 32px;
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Logo lockup --- */
+
+.lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.logo {
+  color: var(--color-logo);
+}
+
+.wordmark {
+  margin: 12px 0 0;
+  font: var(--font-title-2);
+  letter-spacing: -0.34px;
+  color: var(--color-text-primary);
+}
+
+.caption {
+  margin: 2px 0 0;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary);
+}
+
+/* --- Stages --- */
+
+/* 250ms fade/slide between phone and OTP stages (§3.20). */
+.stage {
+  animation: stage-in var(--transition-medium);
+}
+
+@keyframes stage-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    animation: none;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label {
+  font: var(--font-body-small);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Composer-flavored input, rectangular-ish (§3.20): 8px radius, 36px tall,
+   input-bg surface, ultramarine focus border (no outline ring). */
+.input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font: var(--font-body-1);
+  letter-spacing: -0.08px;
+}
+
+.input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--ultramarine);
+}
+
+/* DESIGN_BRIEF: ≥16px input font on phones (kills iOS focus auto-zoom). */
+@media (max-width: 640px) {
+  .input {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+.otpInput {
+  text-align: center;
+  letter-spacing: 4px;
+}
+
+.otpInput::placeholder {
+  letter-spacing: 4px;
+}
+
+.helper {
+  margin: 0;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary);
+}
+
+.helperDim {
+  color: var(--color-text-placeholder);
+}
+
+/* Shared primary pill (§3.16 spec): 36px, full-radius, ultramarine, white
+   14px/600, hover = 8% white overlay, disabled = 40% opacity. */
+.primaryButton {
+  height: 36px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ultramarine);
+  color: var(--color-text-on-accent);
+  font: var(--font-body-1);
+  font-weight: 600;
+  letter-spacing: -0.08px;
+  transition: background-color var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .primaryButton:hover:not(:disabled) {
+    background-image: linear-gradient(
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.08)
+    );
+  }
+}
+
+.primaryButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.linkButton {
+  align-self: center;
+  border: none;
+  background: none;
+  padding: 4px;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-link);
+}
+
+/* No danger token in the spec palette — Signal's saturated red pair. */
+.error {
+  margin: 12px 0 0;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--avatar-a170-fg);
+  text-align: center;
+}
+
+/* --- Demo ghost pills, below the card (§3.20) --- */
+
+.demoRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.demoButton {
+  flex: 1;
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-pane);
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-primary);
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  transition: background-color var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .demoButton:hover:not(:disabled) {
+    background: var(--color-overlay-hover);
+  }
+}
+
+.demoButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* --- Nonprofit footer, bottom of viewport --- */
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  margin: 0;
+  text-align: center;
+  font: var(--font-body-small);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}

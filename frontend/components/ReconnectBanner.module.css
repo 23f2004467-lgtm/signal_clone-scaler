@@ -1,0 +1,49 @@
+/* Reconnect banner (DESIGN.md §3.13): a full-width 32px strip at the very
+   top of the app shell — it participates in the layout's .frame column
+   (flex-shrink: 0), so the panes shift down beneath it instead of being
+   overlaid. */
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  flex-shrink: 0;
+  overflow: hidden;
+  z-index: var(--z-banner, 20);
+  background: var(--color-banner-bg, #e9e9e9);
+  color: var(--color-banner-text, #5e5e5e);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  user-select: none;
+}
+
+/* Hosts the reused §3.8 tick glyphs (dashed-ring spinner while down, check
+   once the socket is back) — they inherit the banner color via currentColor.
+   The spinner keeps rotating under prefers-reduced-motion: status
+   information, not decoration (§2 mobile-hardening ruling). */
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}
+
+/* Connected -> slide away over 250ms (§3.13). */
+.leaving {
+  animation: banner-out var(--transition-medium, 250ms ease-out) forwards;
+}
+
+@keyframes banner-out {
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaving {
+    animation-duration: 1ms;
+  }
+}

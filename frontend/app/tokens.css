@@ -1,0 +1,179 @@
+/* Design tokens — DESIGN.md §1, verbatim (single source of truth).
+   Standalone for now; M4 imports this from app/globals.css. Theme switching =
+   setting data-theme="dark" on <html>. Default (no attribute) = light.
+   Element-level rules from §1 (body font/colors, scrollbars) belong in
+   globals.css itself (M4 checklist step 1), not here — this file is custom
+   properties only. */
+
+:root {
+  /* ---- Gray ladder (Signal Desktop gray scale) ---- */
+  --gray-02: #f6f6f6;
+  --gray-04: #f0f0f0;
+  --gray-05: #e9e9e9;
+  --gray-15: #dedede;
+  --gray-20: #c6c6c6;
+  --gray-25: #b9b9b9;
+  --gray-45: #848484;
+  --gray-60: #5e5e5e;
+  --gray-62: #545454;
+  --gray-65: #4a4a4a;
+  --gray-75: #3b3b3b;
+  --gray-80: #2e2e2e;
+  --gray-90: #1b1b1b;
+  --gray-95: #121212;
+
+  /* ---- Brand ---- */
+  --ultramarine: #2c6bed;         /* THE Signal blue: outgoing bubbles, badges, focus, send */
+  --ultramarine-dawn: #406ec9;    /* dark-mode unread badge */
+  --ultramarine-light: #6191f3;   /* dark-mode links/accent text */
+  --logo-blue: #3b45fd;           /* Signal logo glyph tint (light mode) */
+
+  /* ---- Semantic: surfaces ---- */
+  --color-bg-primary: #ffffff;             /* chat pane, message area */
+  --color-bg-secondary: var(--gray-04);    /* left pane */
+  --color-bg-tertiary: var(--gray-02);     /* settings nav column, inset wells [approx] */
+  --color-bg-modal: #ffffff;
+  --color-bg-chip: #ffffff;                /* floating day chip, scroll-to-bottom button */
+  --color-border-pane: rgba(0, 0, 0, 0.16);      /* 1px divider between panes */
+  --color-overlay-hover: rgba(0, 0, 0, 0.06);    /* icon-button hover, search field bg */
+  --color-overlay-scrim: rgba(0, 0, 0, 0.4);     /* behind modals */
+
+  /* ---- Semantic: text ---- */
+  --color-text-primary: var(--gray-90);
+  --color-text-secondary: var(--gray-60);
+  --color-text-placeholder: var(--gray-45);
+  --color-text-on-accent: #ffffff;
+  --color-link: var(--ultramarine);
+
+  /* ---- Semantic: conversation list ---- */
+  --color-row-hover: var(--gray-05);
+  --color-row-selected: var(--gray-15);
+  --color-unread-badge: var(--ultramarine);
+  --color-unread-badge-text: #ffffff;
+
+  /* ---- Semantic: bubbles ---- */
+  --color-bubble-outgoing: var(--ultramarine);
+  --color-bubble-outgoing-text: #ffffff;
+  --color-bubble-outgoing-meta: rgba(255, 255, 255, 0.8);  /* timestamp + ticks on blue */
+  --color-bubble-incoming: var(--gray-05);
+  --color-bubble-incoming-text: var(--gray-90);
+  --color-bubble-incoming-meta: var(--gray-60);
+
+  /* ---- Semantic: composer / inputs ---- */
+  --color-input-bg: var(--gray-05);        /* identical to incoming bubble, by design */
+  --color-input-focus-ring: var(--ultramarine);
+  --color-icon: var(--gray-75);            /* composer/header glyphs */
+  --color-icon-muted: var(--gray-45);      /* search magnifier, list ticks, bell-slash */
+  --color-send-button: var(--ultramarine);
+
+  /* ---- Semantic: misc ---- */
+  --color-logo: var(--logo-blue);          /* empty-state Signal glyph */
+  --color-toast-bg: var(--gray-80);
+  --color-toast-text: var(--gray-05);
+  --color-banner-bg: var(--gray-05);       /* ReconnectBanner [approx] */
+  --color-banner-text: var(--gray-60);
+
+  /* ---- Avatar pairs: pastel background / saturated foreground (12) ---- */
+  --avatar-a100-bg: #e3e3fe; --avatar-a100-fg: #3838f5;
+  --avatar-a110-bg: #dde7fc; --avatar-a110-fg: #1251d3;
+  --avatar-a120-bg: #d8e8f0; --avatar-a120-fg: #086da0;
+  --avatar-a130-bg: #cde4cd; --avatar-a130-fg: #067906;
+  --avatar-a140-bg: #eae0fd; --avatar-a140-fg: #661aff;
+  --avatar-a150-bg: #f5e3fe; --avatar-a150-fg: #9f00f0;
+  --avatar-a160-bg: #f6d8ec; --avatar-a160-fg: #b8057c;
+  --avatar-a170-bg: #f5d7d7; --avatar-a170-fg: #be0404;
+  --avatar-a180-bg: #fef5d0; --avatar-a180-fg: #836b01;
+  --avatar-a190-bg: #eae6d5; --avatar-a190-fg: #7d6f40;
+  --avatar-a200-bg: #d2d2dc; --avatar-a200-fg: #4f4f6d;
+  --avatar-a210-bg: #d7d7d9; --avatar-a210-fg: #5c5c5c;
+
+  /* ---- Typography ---- */
+  /* Signal's full stack ($inter) also bundles 'Source Sans Pro', 'Source Han Sans' and the
+     Signal Emoji fonts; we deliberately drop the bundled fonts and keep the same order. */
+  --font-family: Inter, -apple-system, system-ui, 'Segoe UI', 'Noto Sans',
+                 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /* Type scale: size / line-height / letter-spacing. Bold is ALWAYS weight 600, never 700. */
+  --font-title-2: 600 20px/26px var(--font-family);   /* ls -0.34px — modal titles, welcome */
+  --font-title-medium: 600 16px/22px var(--font-family); /* ls -0.17px [approx] — pane header */
+  --font-body-1: 14px/20px var(--font-family);        /* ls -0.08px — messages, names, titles */
+  --font-body-2: 13px/18px var(--font-family);        /* ls -0.03px — previews, subtitles, search */
+  --font-body-small: 12px/16px var(--font-family);    /* group author names, modal subtitles */
+  --font-subtitle: 12px/17px var(--font-family);      /* modal list subtitles */
+  --font-caption: 11px/14px var(--font-family);       /* ls +0.06px — timestamps, badges, metadata */
+
+  /* ---- Radii scale ---- */
+  --radius-sm: 4px;      /* icon-button hover bg, flattened run corners */
+  --radius-md: 8px;      /* search field, modals, banners */
+  --radius-row: 10px;    /* conversation rows, unread badge */
+  --radius-bubble: 18px; /* bubbles, composer input */
+  --radius-full: 9999px; /* avatars, chips, pills, circular buttons */
+
+  /* ---- Spacing scale (use these steps only) ---- */
+  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;  --space-4: 8px;
+  --space-5: 12px; --space-6: 16px; --space-7: 20px; --space-8: 24px; --space-9: 32px;
+
+  /* ---- Shadows ---- */
+  --shadow-chip: 0 1px 4px rgba(0, 0, 0, 0.2);   /* floating day chip, scroll-to-bottom */
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.24); /* [approx] */
+  --shadow-toast: 0 4px 12px rgba(0, 0, 0, 0.24); /* [approx] */
+
+  /* ---- Z-index scale ---- */
+  --z-sticky-date: 10;   /* floating day chip */
+  --z-scroll-btn: 15;
+  --z-banner: 20;        /* ReconnectBanner */
+  --z-modal: 100;
+  --z-toast: 200;
+
+  /* ---- Transitions ---- */
+  --transition-fast: 120ms ease-out;    /* hovers, button reveals [approx] */
+  --transition-medium: 250ms ease-out;  /* chip fade (0.25s per source), pane slide */
+  --duration-typing: 1600ms;            /* typing dot cycle (verified: 1600ms ease) */
+  --duration-typing-stagger: 160ms;     /* per-dot delay (verified: 0/160ms/320ms) */
+  --duration-spinner: 4s;               /* sending-tick rotation (verified: rotate 4s linear infinite) */
+
+  /* ---- Breakpoints (DESIGN_BRIEF contract) ----
+     @media rules must hardcode the same px (custom properties don't work in media queries);
+     these tokens are the single documented source + what JS matchMedia mirrors. */
+  --bp-mobile: 640px;   /* ≤640px = single-pane phone layout */
+  --bp-tablet: 1024px;  /* 641–1024px = tablet two-pane; >1024px = desktop */
+}
+
+[data-theme="dark"] {
+  --color-bg-primary: var(--gray-95);        /* #121212 chat pane */
+  --color-bg-secondary: var(--gray-80);      /* #2e2e2e left pane */
+  --color-bg-tertiary: var(--gray-90);       /* [approx] */
+  --color-bg-modal: var(--gray-80);
+  --color-bg-chip: var(--gray-80);
+  --color-border-pane: rgba(255, 255, 255, 0.16);
+  --color-overlay-hover: rgba(255, 255, 255, 0.06);
+  --color-overlay-scrim: rgba(0, 0, 0, 0.6);
+
+  --color-text-primary: var(--gray-05);      /* #e9e9e9 */
+  --color-text-secondary: var(--gray-25);    /* #b9b9b9 */
+  --color-text-placeholder: var(--gray-25);
+  --color-link: var(--ultramarine-light);
+
+  --color-row-hover: var(--gray-75);         /* #3b3b3b */
+  --color-row-selected: var(--gray-65);      /* #4a4a4a */
+  --color-unread-badge: var(--ultramarine-dawn); /* #406ec9 */
+
+  --color-bubble-outgoing: var(--ultramarine);   /* SAME blue in dark mode */
+  --color-bubble-outgoing-text: var(--gray-05);  /* #e9e9e9 */
+  --color-bubble-incoming: var(--gray-75);       /* #3b3b3b */
+  --color-bubble-incoming-text: var(--gray-05);
+  --color-bubble-incoming-meta: var(--gray-25);
+
+  --color-input-bg: var(--gray-75);
+  --color-icon: var(--gray-15);              /* #dedede */
+  --color-icon-muted: var(--gray-25);
+
+  --color-logo: #ffffff;
+  --color-toast-bg: var(--gray-65);          /* [approx] */
+  --color-toast-text: var(--gray-05);
+  --color-banner-bg: var(--gray-75);
+  --color-banner-text: var(--gray-25);
+}
+
+/* Search field bg is an rgba overlay, different per theme and NOT the hover token in dark: */
+:root { --color-search-bg: rgba(0, 0, 0, 0.06); }
+[data-theme="dark"] { --color-search-bg: rgba(255, 255, 255, 0.12); }

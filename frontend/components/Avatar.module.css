@@ -1,0 +1,14 @@
+/* Initials avatar (DESIGN.md §3.3): perfect circle, no border, no ring.
+   The pastel bg / saturated fg pair and the px sizes are inline styles —
+   they vary per instance. */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 100%;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}

@@ -1,0 +1,186 @@
+/* Composer (DESIGN.md §3.10). Transparent container on the chat bg; resting
+   height computes to 52px (32px input + 2×10px padding) — the 42px
+   min-height is a floor, not the target. Edge math: 8px container padding +
+   4px cell margin = 12px at the outer edges. */
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  min-height: 42px;
+  padding: 10px 8px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: transparent;
+}
+
+/* 32×32 ghost icon buttons: 20px glyph, rounded-full, hover overlay. */
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  margin: 0 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-full, 9999px);
+  color: var(--color-icon, #3b3b3b);
+  cursor: pointer;
+  transition: background-color var(--transition-fast, 120ms ease-out);
+}
+
+@media (hover: hover) {
+  .iconButton:hover:enabled {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ≥44×44 tap targets on coarse pointers (§2 mobile hardening). */
+@media (pointer: coarse) {
+  .iconButton::after,
+  .sendButton::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+/* Pill input: 18px radius on --color-input-bg (identical to the incoming
+   bubble, by design). 1px transparent border swaps to ultramarine on
+   keyboard focus — padding is 5px/11px so border + padding = the spec's
+   6px block / 12px inline. */
+.input {
+  flex: 1;
+  min-width: 0;
+  margin: 0 6px;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-bubble, 18px);
+  background: var(--color-input-bg, #e9e9e9);
+  color: var(--color-text-primary, #1b1b1b);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  min-height: 32px;
+  max-height: 72px;
+  height: 32px;
+  resize: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-text-placeholder, #848484);
+}
+
+.input:focus-visible {
+  border-color: var(--ultramarine, #2c6bed);
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+/* iOS focus auto-zoom guard: ≥16px inputs on phones (§2 mobile hardening). */
+@media (max-width: 640px) {
+  .input {
+    font-size: 16px;
+    line-height: 22px;
+    min-height: 34px;
+    height: 34px;
+  }
+}
+
+/* Fixed 32px slot so the mic→send swap never shifts the row. */
+.sendSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin: 0 4px;
+}
+
+.slotButton {
+  margin: 0;
+}
+
+/* The send button: 32px ultramarine circle, white paper-plane, revealed with
+   a 120ms opacity + scale(0.8→1) pop (§3.10). */
+.sendButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-send-button, #2c6bed);
+  color: var(--color-text-on-accent, #ffffff);
+  cursor: pointer;
+  animation: send-in var(--transition-fast, 120ms ease-out);
+}
+
+@media (hover: hover) {
+  .sendButton:hover:enabled {
+    /* §3.16 primary-button hover: 8% white overlay */
+    background-image: linear-gradient(
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.08)
+    );
+  }
+}
+
+.sendButton:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@keyframes send-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion: reveal drops the scale, opacity only (§2 hardening). */
+@media (prefers-reduced-motion: reduce) {
+  .sendButton {
+    animation: send-in-fade var(--transition-fast, 120ms ease-out);
+  }
+
+  @keyframes send-in-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

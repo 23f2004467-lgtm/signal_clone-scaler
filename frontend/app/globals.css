@@ -1,0 +1,77 @@
+/* Global element styles (DESIGN.md §1). Every color/space/type decision lives
+   in app/tokens.css — the verbatim DESIGN.md token block — imported first so
+   all component modules read the same custom properties. Theme switching =
+   data-theme="dark" on <html>, set BEFORE first paint by the bootstrap script
+   in app/layout.tsx (default respects prefers-color-scheme; the SettingsModal
+   Appearance switcher overrides via localStorage "theme"). */
+
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font: var(--font-body-1);
+  letter-spacing: -0.08px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars (WebKit): 9px, thumb gray-20 light / gray-62 dark (§1). */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-20);
+  border-radius: var(--radius-full);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--gray-62);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+button {
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+
+/* Focus rings are keyboard-only (§4): mouse focus shows nothing; keyboard
+   focus gets the 2px ultramarine outline. The search field and composer
+   input swap their own 1px border instead (their modules opt out). */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ultramarine);
+  outline-offset: 2px;
+}

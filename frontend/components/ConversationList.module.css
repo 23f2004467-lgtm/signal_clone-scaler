@@ -1,0 +1,187 @@
+/* Conversation list (DESIGN.md §3.1 search row + §3.2 rows). */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* lets .rows scroll instead of stretching the flex column */
+  flex: 1;
+}
+
+/* --- Search row (§3.1) --- */
+
+.searchBox {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0 16px 8px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  color: var(--color-icon-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 28px;
+  padding: 0 5px 0 30px; /* padding-inline 30px 5px */
+  border: 1px solid transparent;
+  border-radius: var(--radius-md); /* rounded rect, NOT a pill */
+  background: var(--color-search-bg);
+  color: var(--color-text-primary);
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* §4 focus rings: the search field swaps its border, no outline. */
+.searchInput:focus-visible {
+  outline: none;
+  border-color: var(--ultramarine);
+}
+
+/* DESIGN_BRIEF: ≥16px input font on phones (kills iOS focus auto-zoom). */
+@media (max-width: 640px) {
+  .searchInput {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+.empty {
+  padding: 24px 16px;
+  text-align: center;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary);
+}
+
+/* --- Rows (§3.2) --- */
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0 11px; /* rows container padding-inline 11px */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* avatar margin-right 12px */
+  width: 100%;
+  height: 72px;
+  margin-block: 2px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius-row);
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+/* States (§3.2): background only — no accent bar, no elevation. Hover is
+   gated behind (hover: hover) so touch devices never stick a tint. */
+@media (hover: hover) {
+  .row:hover {
+    background: var(--color-row-hover);
+  }
+}
+
+.rowSelected,
+.rowSelected:hover {
+  background: var(--color-row-selected); /* selected wins over hover */
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* allows the preview to ellipsize inside flex */
+  flex: 1;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font: var(--font-body-1);
+  font-weight: 600; /* Signal bold is ALWAYS 600, never 700 */
+  letter-spacing: -0.08px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.time {
+  flex-shrink: 0;
+  margin-left: 6px;
+  font: var(--font-caption);
+  letter-spacing: 0.06px;
+  color: var(--color-text-secondary);
+}
+
+.rowBottom {
+  display: flex;
+  align-items: center;
+}
+
+.preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  font: var(--font-body-2);
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary);
+}
+
+.previewText {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* §3.8: the double-tick halo must erase against the pane behind it. Row
+   hover/selected tints show a slightly wrong halo — accepted by spec. */
+.previewTick {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-icon-muted);
+  --tick-halo: var(--color-bg-secondary);
+}
+
+/* Unread badge (§3.2): 18px pill, 11px/500 white on ultramarine. The badge
+   alone signals unread — name/preview are never bolded. */
+.unreadBadge {
+  flex-shrink: 0;
+  margin-inline-start: 10px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-row);
+  background: var(--color-unread-badge);
+  color: var(--color-unread-badge-text);
+  font: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.06px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -1,0 +1,288 @@
+/* Settings modal (DESIGN.md §3.18). */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-scrim, rgba(0, 0, 0, 0.4));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 90vw;
+  height: 480px;
+  max-height: 85vh; /* [approx dimensions] */
+  padding: 16px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-modal, #ffffff);
+  box-shadow: var(--shadow-modal, 0 8px 24px rgba(0, 0, 0, 0.24));
+  font-family: var(--font-family, Inter, -apple-system, system-ui, "Segoe UI",
+      "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif);
+  color: var(--color-text-primary, #1b1b1b);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.modalTitle {
+  /* --font-title-2: 600 20px/26px */
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.34px;
+  margin: 0;
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-icon, #3b3b3b);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .iconButton::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+.body {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Left nav column: 200px [approx] on --color-bg-tertiary. */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 200px;
+  flex-shrink: 0;
+  padding: 8px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-tertiary, #f6f6f6);
+  overflow-y: auto;
+}
+
+/* [approx] keep the two-column anatomy on phones, just narrower. */
+@media (max-width: 640px) {
+  .nav {
+    width: 140px;
+  }
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-md, 8px);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  color: var(--color-text-primary, #1b1b1b);
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .navItem:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.navItemSelected,
+.navItemSelected:hover {
+  background: var(--color-row-selected, #dedede);
+}
+
+@media (hover: hover) {
+  .navItemSelected:hover {
+    background: var(--color-row-selected, #dedede);
+  }
+}
+
+.navItem:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: -2px;
+}
+
+/* 36px row + 2×4px invisible extension = 44px touch target. */
+@media (pointer: coarse) {
+  .navItem {
+    position: relative;
+  }
+
+  .navItem::after {
+    content: "";
+    position: absolute;
+    inset: -4px 0;
+  }
+}
+
+.navDivider {
+  height: 1px;
+  flex-shrink: 0;
+  margin: 8px 4px;
+  background: var(--color-border-pane, rgba(0, 0, 0, 0.16));
+}
+
+.section {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.08px;
+  margin: 4px 0 12px;
+}
+
+/* Theme radio group: 20px circles, ultramarine dot when selected. */
+.radioRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px; /* touch-safe row */
+  cursor: pointer;
+}
+
+.radioInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.radioCircle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1.5px solid var(--color-icon-muted, #848484);
+  flex-shrink: 0;
+}
+
+.radioInput:checked + .radioCircle {
+  border-color: var(--ultramarine, #2c6bed);
+}
+
+.radioInput:checked + .radioCircle::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--ultramarine, #2c6bed);
+}
+
+.radioInput:focus-visible + .radioCircle {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+.radioLabel {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+}
+
+/* Profile section: read-only. */
+.profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.profileName {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.08px;
+  margin: 8px 0 0;
+}
+
+.profilePhone {
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary, #5e5e5e);
+  margin: 0;
+}
+
+/* Coming Soon placeholder: centered 13px secondary + 32px glyph. */
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-secondary, #5e5e5e);
+}
+
+.placeholderGlyph {
+  display: inline-flex;
+  color: var(--color-icon-muted, #848484);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 100%;
+  font-weight: 600;
+  user-select: none;
+}

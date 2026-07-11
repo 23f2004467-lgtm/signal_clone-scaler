@@ -1,0 +1,359 @@
+/* New group two-step takeover (DESIGN.md §3.16). */
+
+.takeover {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg-secondary, #f0f0f0);
+  font-family: var(--font-family, Inter, -apple-system, system-ui, "Segoe UI",
+      "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif);
+  color: var(--color-text-primary, #1b1b1b);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  flex-shrink: 0;
+  padding: 0 16px;
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-icon, #3b3b3b);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .iconButton::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+.title {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.17px;
+  margin: 0 0 0 8px;
+}
+
+/* Search row — identical to §3.1. */
+.searchRow {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0 16px 8px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  color: var(--color-icon-muted, #848484);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 28px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-search-bg, rgba(0, 0, 0, 0.06));
+  border: 1px solid transparent;
+  padding: 0 5px 0 30px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  color: var(--color-text-primary, #1b1b1b);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-placeholder, #848484);
+}
+
+.searchInput:focus-visible {
+  outline: none;
+  border-color: var(--ultramarine, #2c6bed);
+}
+
+/* Selected-member chips: 24px pill — 20px avatar + name 13px + ×. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 16px 8px;
+  flex-shrink: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 2px 6px 2px 2px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  max-width: 100%;
+}
+
+.chipName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipRemove {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius-full, 9999px);
+  color: var(--color-icon-muted, #848484);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .chipRemove:hover {
+    color: var(--color-icon, #3b3b3b);
+  }
+}
+
+.chipRemove:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+/* [approx] chips are dense; -8px gives a 32px hit area (full 44px would
+   overlap neighboring chips). */
+@media (pointer: coarse) {
+  .chipRemove::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ListTile pattern (§3.15) + 20px round checkbox on the right. */
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: -2px;
+}
+
+.tileText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.tileTitle {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tileSubtitle {
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--color-text-secondary, #5e5e5e);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1.5px solid var(--color-icon-muted, #848484);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.checkboxChecked {
+  background: var(--ultramarine, #2c6bed);
+  border-color: var(--ultramarine, #2c6bed);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 100%;
+  font-weight: 600;
+  user-select: none;
+}
+
+.emptyText {
+  margin: 16px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-secondary, #5e5e5e);
+  text-align: center;
+}
+
+/* Shared primary pill button (§3.16): bottom-pinned, full-width w/ 16px
+   margins. */
+.primaryButton {
+  position: relative;
+  height: 36px;
+  margin: 16px;
+  margin-top: auto;
+  width: calc(100% - 32px);
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--ultramarine, #2c6bed);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .primaryButton:not(:disabled):hover {
+    /* 8% white overlay */
+    background-image: linear-gradient(rgba(255, 255, 255, 0.08),
+        rgba(255, 255, 255, 0.08));
+  }
+}
+
+.primaryButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.primaryButton:focus-visible {
+  outline: 2px solid var(--ultramarine, #2c6bed);
+  outline-offset: 2px;
+}
+
+/* 36px tall + 2×4px invisible extension = 44px touch target. */
+@media (pointer: coarse) {
+  .primaryButton::after {
+    content: "";
+    position: absolute;
+    inset: -4px 0;
+  }
+}
+
+/* Step 2. */
+.groupAvatarPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin: 16px auto;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-overlay-hover, rgba(0, 0, 0, 0.06));
+  color: var(--color-icon, #3b3b3b);
+  flex-shrink: 0;
+}
+
+/* Styled like the composer input (§3.10): 18px radius on --color-input-bg. */
+.nameInput {
+  display: block;
+  margin: 0 16px 12px;
+  width: calc(100% - 32px);
+  min-height: 32px;
+  border-radius: var(--radius-bubble, 18px);
+  background: var(--color-input-bg, #e9e9e9);
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  color: var(--color-text-primary, #1b1b1b);
+  flex-shrink: 0;
+}
+
+.nameInput::placeholder {
+  color: var(--color-text-placeholder, #848484);
+}
+
+.nameInput:focus-visible {
+  outline: none;
+  border-color: var(--ultramarine, #2c6bed);
+}
+
+@media (max-width: 640px) {
+  .searchInput,
+  .nameInput {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+.chipsSummary {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

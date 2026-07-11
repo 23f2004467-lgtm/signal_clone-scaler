@@ -1,0 +1,59 @@
+/* Empty state (DESIGN.md §3.12). */
+
+.pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg-primary, #ffffff);
+  font-family: var(--font-family, Inter, -apple-system, system-ui, "Segoe UI",
+      "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif);
+  color: var(--color-text-primary, #1b1b1b);
+  text-align: center;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo {
+  color: var(--color-logo, #3b45fd);
+}
+
+.heading {
+  /* --font-title-medium: 600 16px/22px */
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.17px;
+  margin: 20px 0 6px;
+}
+
+.subline {
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary, #5e5e5e);
+  margin: 0;
+}
+
+.link {
+  color: var(--color-link, #2c6bed);
+  cursor: pointer;
+}
+
+.footer {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-secondary, #5e5e5e);
+}

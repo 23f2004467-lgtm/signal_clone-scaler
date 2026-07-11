@@ -1,0 +1,22 @@
+/* Day divider chip (DESIGN.md §3.5). */
+
+.row {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0 8px; /* margin-block 20px 8px [approx] */
+}
+
+.chip {
+  padding: 6px 10px; /* 10px horizontal / 6px vertical */
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-bg-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 4px rgba(0, 0, 0, 0.2));
+  font-family: var(--font-family, Inter, -apple-system, system-ui, "Segoe UI",
+      "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  letter-spacing: -0.03px;
+  color: var(--color-text-secondary, #5e5e5e);
+  user-select: none;
+}

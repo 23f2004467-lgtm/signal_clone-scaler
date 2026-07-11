@@ -1,0 +1,21 @@
+/* Status ticks (DESIGN.md §3.8). */
+
+.tick {
+  display: block;
+  flex-shrink: 0;
+}
+
+.spinner {
+  animation: tick-rotate var(--duration-spinner, 4s) linear infinite;
+  transform-origin: center;
+}
+
+@keyframes tick-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* No prefers-reduced-motion override here ON PURPOSE: per DESIGN.md §2.6 the
+   sending spinner keeps rotating under reduced motion — it is status
+   information, not decoration. */
