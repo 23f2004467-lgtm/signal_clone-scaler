@@ -121,8 +121,8 @@ Timing rule: enable pingers **only after** B2.9 passed. A cold wake takes ~30–
 ### B7. The freeze rule + the warm-up ritual
 
 - [ ] 1. **FREEZE DEPLOYS for the entire evaluation window.** Any `git push` = a Render redeploy = fresh ephemeral filesystem (total data wipe, reseed) + SIGTERM to uvicorn (every live socket drops, clients churn through reconnect). Do not push "one tiny fix" while an evaluator might be on the site.
-- [ ] 2. T-24 h before the interview: confirm Render service live, both pingers green, Vercel production deploy current, and run the full two-browser smoke test (B5) on the real URLs.
-- [ ] 3. **T-5 minutes before the interview:** open the production URL yourself, click through once, and send one message. This guarantees a warm instance and freshly-verified seeded data regardless of what the pingers are doing. **Leave the tab open** — the client's 25 s heartbeat counts as traffic and holds the instance awake through the interview.
+- [ ] 2. T-24 h before sharing the link for review: confirm Render service live, both pingers green, Vercel production deploy current, and run the full two-browser smoke test (B5) on the real URLs.
+- [ ] 3. **T-5 minutes before a live demo:** open the production URL yourself, click through once, and send one message. This guarantees a warm instance and freshly-verified seeded data regardless of what the pingers are doing. **Leave the tab open** — the client's 25 s heartbeat counts as traffic and holds the instance awake throughout.
 
 ---
 

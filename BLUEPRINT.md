@@ -8,7 +8,7 @@
 
 ## 1. Guiding principle
 
-Boring, explainable architecture wins this interview. The evaluation explicitly grades "ability to explain every line," so every pattern in this blueprint is either verbatim from an official doc (FastAPI's WebSockets tutorial, react.dev's chat-server useEffect example, SQLAlchemy's own dialect docs) or a one-step obvious adaptation of one. Zero real-time libraries, zero ORM magic, zero Redis, zero clever abstractions. Every deliberate simplification (single uvicorn worker, one socket per user, token in the query string, single-file SQLite) is written down in the README with a one-sentence "here's how I'd do it at scale" answer — which turns each limitation into interview material instead of a weakness.
+Boring, explainable architecture is the guiding principle. The assignment explicitly grades "ability to explain every line," so every pattern in this blueprint is either verbatim from an official doc (FastAPI's WebSockets tutorial, react.dev's chat-server useEffect example, SQLAlchemy's own dialect docs) or a one-step obvious adaptation of one. Zero real-time libraries, zero ORM magic, zero Redis, zero clever abstractions. Every deliberate simplification (single uvicorn worker, one socket per user, token in the query string, single-file SQLite) is written down in the README with a one-sentence "here's how I'd do it at scale" answer — which turns each limitation into a documented decision instead of a weakness.
 
 ---
 
@@ -161,12 +161,12 @@ Two free platforms, two origins. **Vercel** (free Hobby) serves the Next.js fron
 Three consequences of this shape:
 
 1. **The browser talks straight to Render for the socket.** Vercel's serverless functions can't hold persistent connections and Vercel doesn't proxy WS to external origins — so `new WebSocket(process.env.NEXT_PUBLIC_WS_URL + "/ws?token=" + token)`, always `wss://` (the https page blocks `ws://` as mixed content with no useful error, and Render answers `ws://` handshakes with a 301 that breaks most clients).
-2. **CORS returns to `main.py` — for REST only.** Exact Vercel origin + `http://localhost:3000` in `allow_origins`, plus an anchored `allow_origin_regex` for Vercel preview URLs (§11). Keep the interview aside: CORS never applied to the WebSocket handshake, so never "debug" `/ws` by fiddling with CORS — the real culprits are ws-vs-wss scheme mismatches.
+2. **CORS returns to `main.py` — for REST only.** Exact Vercel origin + `http://localhost:3000` in `allow_origins`, plus an anchored `allow_origin_regex` for Vercel preview URLs (§11). Worth noting: CORS never applied to the WebSocket handshake, so never "debug" `/ws` by fiddling with CORS — the real culprits are ws-vs-wss scheme mismatches.
 3. **The free tier runs exactly ONE instance** — which is not a compromise but a perfect match for the process-local ConnectionManager: no accidental horizontal scaling can ever split the dict.
 
 **The single-server-process rule stands, front and center:** the container CMD is `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1` — the same plain uvicorn in dev and prod, never `gunicorn -w N` (ruling in §4a and §11), and never set `WEB_CONCURRENCY` on Render.
 
-**The one-paragraph interview answer for why one worker:** "My connection registry is a process-local dict; with 4 workers, user A's socket could land on worker 1 and user B's on worker 3, and worker 1's dict has no idea B exists — delivery breaks silently. One async worker holds thousands of idle sockets since each is just a parked coroutine, which is orders of magnitude beyond a demo. To scale horizontally I'd keep the same per-process manager and add Redis pub/sub: each worker subscribes, publishes inbound messages, and relays to its own local sockets — exactly what FastAPI's docs recommend."
+**Why exactly one worker, in short:** "My connection registry is a process-local dict; with 4 workers, user A's socket could land on worker 1 and user B's on worker 3, and worker 1's dict has no idea B exists — delivery breaks silently. One async worker holds thousands of idle sockets since each is just a parked coroutine, which is orders of magnitude beyond a demo. To scale horizontally I'd keep the same per-process manager and add Redis pub/sub: each worker subscribes, publishes inbound messages, and relays to its own local sockets — exactly what FastAPI's docs recommend."
 
 **The REST vs WS split rule:** *if the client asks, it's REST; if the server tells you something you didn't just ask for, it's WS.* REST handles everything request/response-shaped (login, contacts, conversation list, paginated history, group CRUD) and gets HTTP semantics for free — status codes, curl-testability, the auto-generated `/docs` page. The WebSocket carries only live events. One deliberate exception: **message send goes over WS, not REST POST**, so the ack round-trip that drives `sending → sent` shares one channel with the push. REST handlers import the same `manager` singleton to push live notifications (e.g. group membership changes).
 
@@ -174,7 +174,7 @@ Three consequences of this shape:
 
 ## 4. Database schema
 
-Adopting the **dual-pointer receipt design** (Explainability Advocate + Interviewer consensus): no per-message receipts table. Two integer pointers per membership row power ticks, unread badges, and offline catch-up with one mechanism. The per-message receipts table becomes the "how I'd get Signal-exact per-member group ticks" README note, and the pointer design is the answer that survives "group of 5 — who has the double check?"
+Adopting the **dual-pointer receipt design** (the explainability-first choice): no per-message receipts table. Two integer pointers per membership row power ticks, unread badges, and offline catch-up with one mechanism. The per-message receipts table becomes the "how I'd get Signal-exact per-member group ticks" README note, and the pointer design is the answer that survives "group of 5 — who has the double check?"
 
 **Six tables. Conversations are unified: a DM is just a 2-member conversation with no name.**
 
@@ -241,19 +241,19 @@ messages (
 -- Why: the source of truth. Server timestamp and AUTOINCREMENT id define ordering — never the client clock.
 
 -- Indexes: messages(conversation_id, id). PRAGMAs on every connection:
--- foreign_keys=ON (SQLite does NOT enforce FKs by default — say this in the interview)
+-- foreign_keys=ON (SQLite does NOT enforce FKs by default)
 -- journal_mode=WAL (avoids 'database is locked' under concurrent writes)
 ```
 
-**DB access:** **Sync SQLAlchemy 2.0 — the explainable subset only.** (This replaces the earlier stdlib-`sqlite3` ruling at the developer's request; the honest trade: typed models that double as the README schema section and injection safety by construction, in exchange for five rehearsable concepts — Session/identity map, flush vs commit, expire_on_commit, engine + pool, the pragma listener. If you cannot define a Session in one sentence by build day, raw `sqlite3` remains the fallback.) The subset is a set of hard constraints:
+**DB access:** **Sync SQLAlchemy 2.0 — the explainable subset only.** (This replaces the earlier stdlib-`sqlite3` ruling at the developer's request; the honest trade: typed models that double as the README schema section and injection safety by construction, in exchange for five core concepts — Session/identity map, flush vs commit, expire_on_commit, engine + pool, the pragma listener. If you cannot define a Session in one sentence by build day, raw `sqlite3` remains the fallback.) The subset is a set of hard constraints:
 
 - **Sync only, forever.** Never `create_async_engine`/`AsyncSession` — the async extension's `MissingGreenlet` lazy-load failure is exclusive to asyncio SQLAlchemy and is exactly the unexplainable trap this blueprint avoids. Sync `def` REST handlers run in FastAPI's threadpool, so the event loop is never blocked. Session-per-request via a `get_db` yield dependency is the official FastAPI tutorial pattern — citable line-for-line (including `check_same_thread=False`, which SQLAlchemy 2.0's pysqlite dialect already defaults to for file databases).
-- **2.0 style only:** `DeclarativeBase` + `Mapped[]`/`mapped_column()` + explicit `select()`. Grep the codebase for `session.query` and `declarative_base` before submitting — mixed 1.x style is an instant interview smell.
-- **No `relationship()` at all:** plain FK columns + explicit queries, matching the query shapes above. Lazy loading is hidden SQL at attribute-access time — the single most indefensible line in a line-by-line interview.
+- **2.0 style only:** `DeclarativeBase` + `Mapped[]`/`mapped_column()` + explicit `select()`. Grep the codebase for `session.query` and `declarative_base` before submitting — mixed 1.x style is an instant code smell.
+- **No `relationship()` at all:** plain FK columns + explicit queries, matching the query shapes above. Lazy loading is hidden SQL at attribute-access time — the hardest kind of line to explain or debug.
 - **One `db.py` (~25 lines) owns the whole lifecycle:** the engine; a `@event.listens_for(engine, "connect")` PRAGMA listener setting `foreign_keys=ON`, `journal_mode=WAL`, `busy_timeout=5000` (copy the official SQLite-dialect docs recipe exactly, including the brief `dbapi_connection.autocommit = True` toggle the sqlite3 driver needs for the FK pragma); `sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)` — `expire_on_commit=False` so reading `msg.id` after commit doesn't emit a surprise SELECT or raise `DetachedInstanceError`; and the `get_db` yield dependency for REST.
 - **WS handlers use sessions per EVENT, never per connection:** `Depends` only for connect-time auth; inside the receive loop, a short-lived `with SessionLocal() as session:` per event. Build the outgoing payload (real id, timestamp) INSIDE the block, do socket fan-out OUTSIDE it — never hold a session across an `await` (that open transaction while the coroutine is parked is where "database is locked" comes from despite WAL).
-- **The hardest SQL stays hand-written:** the unread-count correlated subquery and the `MIN()`-across-members receipt aggregation run as `session.execute(text("SELECT ..."), params)` — parameterized, through the same session/transaction — so the strongest schema-design interview material survives the ORM intact.
-- **No Alembic; pin SQLAlchemy 2.0.x** (2.1 is beta as of Jan 2026 — never ship a beta into an interview) **and skip SQLModel** (a second library to explain). `Base.metadata.create_all(engine)` at startup replaces `schema.sql`; the DDL above stays in the README verbatim as the schema documentation.
+- **The hardest SQL stays hand-written:** the unread-count correlated subquery and the `MIN()`-across-members receipt aggregation run as `session.execute(text("SELECT ..."), params)` — parameterized, through the same session/transaction — so the most important schema-design queries stay explicit and visible.
+- **No Alembic; pin SQLAlchemy 2.0.x** (2.1 is beta as of Jan 2026 — never ship a beta) **and skip SQLModel** (a second library to explain). `Base.metadata.create_all(engine)` at startup replaces `schema.sql`; the DDL above stays in the README verbatim as the schema documentation.
 
 ---
 
@@ -261,16 +261,16 @@ messages (
 
 | # | Proposal | Ruling | One-line reason |
 |---|---|---|---|
-| 1 | Caddy reverse proxy (with explicit WebSocket handling) | **NOT DEPLOYED — the paid VPS it rode on is rejected for cost; survives as the "how I'd self-host" README paragraph** | Vercel's and Render's edges already terminate TLS and proxy the WS Upgrade for free, so there is nothing left for Caddy to do in this deployment — the researched Caddy/wss knowledge is kept as interview depth (§11, §12) |
+| 1 | Caddy reverse proxy (with explicit WebSocket handling) | **NOT DEPLOYED — the paid VPS it rode on is rejected for cost; survives as the "how I'd self-host" README paragraph** | Vercel's and Render's edges already terminate TLS and proxy the WS Upgrade for free, so there is nothing left for Caddy to do in this deployment — the researched Caddy/wss knowledge is kept as design context (§11, §12) |
 | 2 | gunicorn in production, uvicorn in dev | **REJECT gunicorn — plain `uvicorn --workers 1` in BOTH (unchanged)** | gunicorn's entire value is multi-process management, which the process-local ConnectionManager forbids; Render itself restarts a crashed service, and the classic `-k uvicorn.workers.UvicornWorker` path is deprecated since uvicorn 0.30 |
 | 3 | SSL + Docker | **SSL: provided automatically by both platforms. Docker: KEEP `backend/Dockerfile` — Render's free tier builds it straight from the repo** | `*.vercel.app` and `*.onrender.com` ship TLS out of the box so `wss://` needs zero certificate work (browser wss → Render's edge terminates TLS → plain HTTP Upgrade to the container); Render's Docker runtime is fully available on the Free instance type, so the developer keeps the Docker story at $0 |
 | 4 | Next.js file-based routing with `app/` (App Router) | **ADOPT (already locked)** | It's the assignment-fixed stack and the blueprint's §8 already uses it — file-based routes, `(chat)` group layout hosting the ChatProvider, `'use client'` where interactivity lives |
 | 5 | WebSockets | **LOCKED (unchanged)** | Assignment-mandated; the entire ack/receipt protocol and reconnect loop are WS-native |
 | 6 | SQLite with SQLAlchemy ("sequalise") | **ADOPT-WITH-CONSTRAINTS** | Legitimate middle ground *only* as the sync-2.0 explainable subset (§4): the official FastAPI tutorial pattern, no async engine (MissingGreenlet trap), no `relationship()`, hardest queries stay hand-written `text()` SQL |
-| 7 | WebTransport ("will have to decide") | **REJECT as transport; KEEP as a README/interview talking point** | uvicorn has no HTTP/3/QUIC and WebTransport isn't even in the ASGI spec — it cannot plug into the locked stack, and the assignment fixes plain WebSockets anyway |
+| 7 | WebTransport ("will have to decide") | **REJECT as transport; KEEP as a README design note** | uvicorn has no HTTP/3/QUIC and WebTransport isn't even in the ASGI spec — it cannot plug into the locked stack, and the assignment fixes plain WebSockets anyway |
 | 8 | Free hosting (new hard constraint: $0, assignment names Vercel) | **ADOPT Vercel (frontend) + Render free web service (backend); fallback: Hugging Face Docker Space** | Render is the only mainstream 2026 PaaS left with a permanent, card-free free tier that officially documents WebSocket support with no imposed connection timeout — and "Render" is literally on the assignment's platform list (Koyeb closed free signups post-Mistral acquisition, Fly requires a card, Railway's trial credit expires, PythonAnywhere can't run ASGI/WS) |
 
-**The WebTransport paragraph (rehearse it — it's free depth):** "I considered WebTransport and chose WebSockets for three concrete reasons. First, my mandated backend can't speak it: uvicorn has no HTTP/3/QUIC support at all, WebTransport isn't even part of the ASGI spec — the asgiref proposal has been open since 2021 — and the only Python paths today are hand-rolling an aioquic event loop or an unmerged Hypercorn draft PR, none of which plugs into FastAPI in a production-shaped way. Second, WebTransport solves problems a chat app doesn't have: its wins are unreliable datagrams and multiple independent streams to avoid head-of-line blocking, which matter for games and live media; chat needs exactly one ordered, reliable, bidirectional stream, which is precisely what WebSocket — RFC 6455, boring and universally proxied — already is. Third, it's operationally immature even in 2026: Safari only shipped it in 26.4 this March so every older iOS device needs a WebSocket fallback anyway, no mainstream proxy edge passes WebTransport sessions upstream today — even Caddy, the proxy I'd use if self-hosting, has only an unmerged experimental passthrough PR, and Render's proxy doesn't speak it at all — and the IETF drafts still aren't RFCs. Since I'd have to build the WebSocket path regardless, WebTransport would only add a second transport to explain and debug, for zero user-visible gain in a text chat." Bonus aside: "The boring transport is also what makes free hosting possible: the WebSocket rides a normal HTTP/1.1 Upgrade through Render's proxy on the single public port — no special edge support needed."
+**Why WebSockets over WebTransport:** "I considered WebTransport and chose WebSockets for three concrete reasons. First, my mandated backend can't speak it: uvicorn has no HTTP/3/QUIC support at all, WebTransport isn't even part of the ASGI spec — the asgiref proposal has been open since 2021 — and the only Python paths today are hand-rolling an aioquic event loop or an unmerged Hypercorn draft PR, none of which plugs into FastAPI in a production-shaped way. Second, WebTransport solves problems a chat app doesn't have: its wins are unreliable datagrams and multiple independent streams to avoid head-of-line blocking, which matter for games and live media; chat needs exactly one ordered, reliable, bidirectional stream, which is precisely what WebSocket — RFC 6455, boring and universally proxied — already is. Third, it's operationally immature even in 2026: Safari only shipped it in 26.4 this March so every older iOS device needs a WebSocket fallback anyway, no mainstream proxy edge passes WebTransport sessions upstream today — even Caddy, the proxy I'd use if self-hosting, has only an unmerged experimental passthrough PR, and Render's proxy doesn't speak it at all — and the IETF drafts still aren't RFCs. Since I'd have to build the WebSocket path regardless, WebTransport would only add a second transport to explain and debug, for zero user-visible gain in a text chat." Bonus aside: "The boring transport is also what makes free hosting possible: the WebSocket rides a normal HTTP/1.1 Upgrade through Render's proxy on the single public port — no special edge support needed."
 
 ---
 
@@ -368,7 +368,7 @@ backend/
     queries.py         # every query as a small named function — select() for the simple ones,
                        #   hand-written text() SQL for unread counts + MIN-pointer receipts
     ws.py              # THE realtime layer (~120 lines): ConnectionManager + /ws endpoint
-                       #   + if/elif dispatch for message.send / typing / read / ping. Rehearse hardest.
+                       #   + if/elif dispatch for message.send / typing / read / ping.
     schemas.py         # Pydantic request/response models for the REST routes
     deps.py            # get_current_user dependency (token -> sessions lookup)
     routers/
@@ -397,7 +397,7 @@ frontend/
                        #   exponential-backoff reconnect (retry >=90s to outlast a cold start);
                        #   onopen refetch; 25s heartbeat ping. WS URL = literal
                        #   process.env.NEXT_PUBLIC_WS_URL (dynamic lookups aren't inlined).
-                       #   Rehearse hardest.
+                       #  
     chatReducer.ts     # single switch, one case per event type — server events ARE actions
   components/
     ConversationList.tsx  # left pane: search filter, unread badges, previews, timestamps
@@ -418,7 +418,7 @@ frontend/
 
 (No Caddyfile, no docker-compose.yml, no frontend Dockerfile — Vercel builds the frontend natively; the backend Dockerfile is the one container artifact and doubles as the local-dev runner.)
 
-The two files that **are** the interview: `backend/app/ws.py` and `frontend/state/ChatProvider.tsx` (+ `chatReducer.ts`). Walk them aloud top to bottom twice before the evaluation.
+The heart of the system is two files: `backend/app/ws.py` and `frontend/state/ChatProvider.tsx` (+ `chatReducer.ts`).
 
 ---
 
@@ -429,7 +429,7 @@ The two files that **are** the interview: `backend/app/ws.py` and `frontend/stat
 | **M0** | 0–3 | Login + seeded conversation list, **already live on Vercel + Render** | Scaffold both apps **plus `backend/Dockerfile` and `render.yaml` from hour zero**; full schema in `models.py` up front (incl. pointers, `reply_to_id`, `dm_key`); mocked OTP + sessions; seed-if-empty; `/health`; conversation-list REST. **Create the Render service (sign up with GitHub OAuth EARLY — scattered reports of accounts asked for card verification as abuse prevention; don't discover this the night before) and import the repo into Vercel NOW** — CORS, NEXT_PUBLIC env vars, wss, single worker, cold-start behavior sorted while surface area is tiny. **The moment the service is live, enable BOTH keep-warm pingers (cron-job.org + UptimeRobot, §11) — from this point the backend never sleeps for the life of the project** |
 | **M1** | 3–9 | Two browser windows chatting in real time | Straight to WebSockets, no polling detour: ConnectionManager, `/ws?token=`, `message.send/ack/new`, persist-first; ChatProvider with useRef socket, reducer, optimistic send, backoff reconnect. Test against the **deployed** backend before closing the milestone |
 | **M2** | 9–13 | Full single/double/blue-check experience | Delivered pointers (push-time + bulk on connect), read events, unread badges, typing relay with throttle + 3 s clear |
-| **M3** | 13–16 | 3-user group chat with admin controls | Nearly free — fan-out already loops over members. Create-group modal, info panel, admin add/remove via REST that pushes through the shared manager (best interview moment). Seed a group |
+| **M3** | 13–16 | 3-user group chat with admin controls | Nearly free — fan-out already loops over members. Create-group modal, info panel, admin add/remove via REST that pushes through the shared manager (the shared-manager design paying off). Seed a group |
 | **M4** | 16–20 | **Looks like Signal** (timeboxed — hard stop) | Clone Signal Desktop literally, following **DESIGN.md** (researched from Signal-Desktop's open-source stylesheets — accent is #2c6bed ultramarine, NOT the older #3A76F0) and **DESIGN_BRIEF.md** (phone/tablet/laptop responsive contract): two panes, bubble shapes, tick glyphs (checks-in-circles per DESIGN.md), initials avatars, "end-to-end encrypted" lock banner (the whole encryption mock), settings placeholders, "Coming Soon" modals. Built on CSS variables |
 | **M5** | 20–24 | Hardened + documented + bonuses | Reconnect banner; 25 s heartbeat ping; verify both keep-warm pingers (enabled back in M0) are green and the UptimeRobot dashboard shows continuous uptime; restart drill (Manual Deploy on Render → data reseeds, sockets reconnect); README (schema DDL, WS event table, state machine, deliberate-limitations section incl. **"data resets on redeploy/restart/spin-down — free-tier ephemeral disk, by design"**, the how-I'd-self-host Caddy paragraph, the WebTransport why-not paragraph — it's a graded deliverable, budget 2 h); then **freeze deploys for the evaluation window** (any push = data wipe + socket churn). Bonuses strictly in order: dark mode (~30 min on the CSS variables) → replies (column exists; quoted bubble) → reactions only if time truly remains. **Stop there**. *Outcome (as shipped): reconnect banner, heartbeat, README, and the first two bonuses landed — dark mode (Light/Dark/System, persisted, no-flash) and reply quotes (server-validated `reply_to_id` + quote-block UI); reactions were not built. Three WS integration suites (`tests_ws_integration.py`, `tests_ws_m2.py`, `tests_ws_m3.py`) document and verify the protocol* |
 
@@ -482,7 +482,7 @@ Real-time messaging works end-to-end by hour 10; everything after degrades grace
 - UptimeRobot free as the second pinger (50 monitors, fixed 5-min interval; ToS restricts free plans to personal/non-commercial use since Dec 2024 — an assignment qualifies) — also gives an uptime dashboard as evidence the demo stayed up.
 - **Skip GitHub Actions cron** as a pinger: 5-min floor but routinely fires 5–30+ min late, auto-disables after 60 days without commits, and it's a ToS gray area.
 - The math: one always-warm service ≈ 744 of the 750 monthly hours. **Run only this ONE backend service in the free workspace** — a second always-on free service exhausts the shared pool around day 16 and Render suspends ALL free services until the next month.
-- Honesty note for the README/interview: pinging is a tolerated workaround, not a feature — Render's sanctioned fix is the $7/mo Starter instance, and Render may restart a free service at any time regardless (refetch-on-open absorbs this). The real demo-day defense is the warm-up in the checklist below.
+- Honesty note for the README: pinging is a tolerated workaround, not a feature — Render's sanctioned fix is the $7/mo Starter instance, and Render may restart a free service at any time regardless (refetch-on-open absorbs this). The real demo-day defense is the warm-up in the checklist below.
 
 **wss:// and TLS — zero backend involvement.** Render serves TLS on `*.onrender.com` by default: the browser opens `wss://<name>.onrender.com/ws?token=…` → Render's edge terminates TLS → forwards a plain-HTTP `Upgrade` to the container on `$PORT` → uvicorn accepts with 101 → the edge tunnels bytes both ways. The app never touches a certificate. **Always `wss://`, never `ws://`:** the https Vercel page blocks `ws://` as mixed content with no useful error, and Render answers `ws://` handshakes with a 301 that breaks most clients.
 
@@ -521,11 +521,11 @@ app.add_middleware(
 - One free service per workspace, one uvicorn worker, no `WEB_CONCURRENCY` — the 750 h pool, the 512 MB ceiling, and the in-memory manager all point the same direction.
 - Sign up for Render with GitHub OAuth early — scattered reports of card-verification prompts as abuse prevention; don't discover this the night before the deadline.
 
-**Pre-interview checklist:** T-24 h: Render service live, cron-job.org pinger green, Vercel production deploy current → two-browser (Alice/Bob) smoke test of message → ticks → typing → group add/remove **on the real URLs** (`https://<app>.vercel.app` against Render), not localhost → devtools Network tab shows the socket as `wss://` with **101 Switching Protocols** → `/docs` renders on the Render URL → then **freeze deploys until the evaluation is over**. T-5 min before the interview: open the production URL, click through once, send one message — this guarantees a warm instance and seeded data regardless of what the pinger is doing — and leave the tab open (the 25 s heartbeat counts as traffic and holds it awake).
+**Pre-demo checklist:** T-24 h: Render service live, cron-job.org pinger green, Vercel production deploy current → two-browser (Alice/Bob) smoke test of message → ticks → typing → group add/remove **on the real URLs** (`https://<app>.vercel.app` against Render), not localhost → devtools Network tab shows the socket as `wss://` with **101 Switching Protocols** → `/docs` renders on the Render URL → then **freeze deploys until the evaluation is over**. T-5 min before a live demo: open the production URL, click through once, send one message — this guarantees a warm instance and seeded data regardless of what the pinger is doing — and leave the tab open (the 25 s heartbeat counts as traffic and holds it awake).
 
 ---
 
-## 12. Interview cheat sheet
+## 12. Design rationale — FAQ
 
 **Q: Why WebSockets over polling or SSE?**
 Bidirectional real-time: server-push for messages/receipts *and* client-push for typing without per-event HTTP overhead. Polling adds latency and waste; SSE is server→client only, so sends would still need HTTP round-trips.
@@ -561,7 +561,7 @@ Yes, for the sub-millisecond duration of an indexed write — negligible here. A
 REST and WS routes are on the same app in the same process, so the handler imports the same manager singleton and pushes `member.removed` after the DB write. Same process = same memory = shared dict — the concrete payoff of the single-worker decision.
 
 **Q: The demo took ~40 s to wake up — and what happens to data on the free tier?**
-Render's free tier spins the service down after 15 idle minutes; the next request — including the reconnect loop's own WS attempt — wakes it in ~30–60 s. The client's exponential backoff keeps retrying past that window, and `onopen` refetches everything, so the UI self-heals with no user action. Data: the free disk is ephemeral, so every cold start wipes SQLite — by design the lifespan handler runs `create_all` + an idempotent seed, so the app always wakes into a demo-ready state; a keep-warm pinger on `/health` plus a T-5-minute manual warm-up keeps that from ever happening mid-interview. In production this whole class of problem is one paid tier (or the self-hosted VPS) away — I documented it instead of paying for it.
+Render's free tier spins the service down after 15 idle minutes; the next request — including the reconnect loop's own WS attempt — wakes it in ~30–60 s. The client's exponential backoff keeps retrying past that window, and `onopen` refetches everything, so the UI self-heals with no user action. Data: the free disk is ephemeral, so every cold start wipes SQLite — by design the lifespan handler runs `create_all` + an idempotent seed, so the app always wakes into a demo-ready state; a keep-warm pinger on `/health` plus a T-5-minute manual warm-up keeps that from ever happening mid-demo. In production this whole class of problem is one paid tier (or the self-hosted VPS) away — I documented it instead of paying for it.
 
 **Q: Why raw WebSocket and not Socket.IO?**
 Socket.IO is a different wire protocol layered on WS — its client cannot connect to FastAPI's plain endpoint. Raw `new WebSocket()` is what FastAPI's docs demo: zero black boxes.
@@ -587,13 +587,13 @@ Async SQLAlchemy's signature failure is `MissingGreenlet` — a lazy load under 
 **Q: Why WebSockets over WebTransport?**
 Three concrete reasons. First, my mandated backend can't speak it: uvicorn has no HTTP/3/QUIC support, WebTransport isn't in the ASGI spec (the asgiref proposal has been open since 2021), and the only Python paths are hand-rolled aioquic or an unmerged Hypercorn draft PR. Second, it solves problems chat doesn't have — unreliable datagrams and independent streams matter for games and live media; chat needs exactly one ordered, reliable, bidirectional stream, which is precisely WebSocket (RFC 6455). Third, it's operationally immature even in 2026: Safari only shipped it in 26.4 this March so older iOS needs a WS fallback anyway, and no mainstream edge — Caddy included — passes WebTransport upstream yet; Render's proxy certainly doesn't. Since I'd build the WebSocket path regardless, WebTransport is a second transport to debug for zero user-visible gain — and the boring transport is exactly what lets the whole thing ride a free host's proxy unmodified.
 
-**Also rehearse:** the FK pragma ("SQLite doesn't enforce foreign keys by default — I enable `PRAGMA foreign_keys=ON` on every connection"), and StrictMode's dev-only double connect ("proof my effect cleanup is correct; production connects once").
+**Also worth noting:** the FK pragma ("SQLite doesn't enforce foreign keys by default — I enable `PRAGMA foreign_keys=ON` on every connection"), and StrictMode's dev-only double connect ("proof my effect cleanup is correct; production connects once").
 
 ---
 
 ## 13. Sources
 
-**Official docs (the backbone — cite these in the interview)**
+**Official docs (the backbone)**
 - FastAPI — WebSockets (endpoint pattern, ConnectionManager, WebSocketDisconnect, token/cookie auth, single-process caveat): https://fastapi.tiangolo.com/advanced/websockets/
 - FastAPI — Concurrency and async/await (event loop, "concurrent burgers"): https://fastapi.tiangolo.com/async/
 - FastAPI — CORS (allow_origins exact match, allow_origin_regex, credentials caveat): https://fastapi.tiangolo.com/tutorial/cors/
