@@ -17,18 +17,24 @@ export function deriveTickStatus(
   // id yet (optimistic bubbles carry id 0), so no pointer can have passed it.
   // Only an acked ("sent") message can be upgraded by the pointers.
   if (message.status !== "sent") return message.status;
-  // M3 pragmatic rule: a freshly added member starts with both pointers 0
-  // (their join boundary isn't tracked, §4), so they gate nothing until their
-  // pointers first move — otherwise adding someone would instantly regress
-  // every already-read message; their connect-time bulk advance lands at the
-  // newest message, so only messages sent after they appear are ever gated.
-  const others = members.filter(
-    (m) =>
-      m.id !== currentUserId &&
-      (m.last_delivered_message_id > 0 || m.last_read_message_id > 0)
-  );
-  // Nobody with receipt state yet (brand-new group, no member ever connected):
-  // the message is persisted but delivered to no one — stay at "sent".
+  // Every OTHER member gates the message (MIN-across-members, §6): it is only
+  // "read"/"delivered" once EVERY one of them has passed it. We deliberately do
+  // NOT filter out members whose pointers are still 0 — a member who has never
+  // connected has genuinely not received the message, so they must hold the
+  // whole group at the earlier state.
+  //
+  // A previous version filtered on (last_delivered > 0 || last_read > 0) to keep
+  // a freshly-added member from regressing old messages. But that same filter
+  // also dropped never-connected ORIGINAL members from the tally: in a 3-member
+  // group where only one member had read, `others` collapsed to just that reader
+  // and `.every()` was vacuously satisfied — a FALSE "read" (double blue) tick.
+  // That correctness bug is worse than the cosmetic regression the filter
+  // prevented, so the filter is gone. (The fully correct rule would gate on a
+  // join boundary — joined_at <= message.created_at — which needs joined_at
+  // surfaced on MemberInfo; tracked as a follow-up.)
+  const others = members.filter((m) => m.id !== currentUserId);
+  // Conversation with no other members (shouldn't happen in practice): nothing
+  // to gate on, so leave it at "sent".
   if (others.length === 0) return "sent";
   if (others.every((m) => m.last_read_message_id >= message.id)) {
     return "read";

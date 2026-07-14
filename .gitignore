@@ -26,3 +26,6 @@ out/
 # Claude Code local config
 .claude/
 .gstack/
+
+# Personal learning materials (local only, never pushed)
+docs/learn/
